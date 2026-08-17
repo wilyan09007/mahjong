@@ -37,9 +37,9 @@ column names the task that creates it.
 
 ## 1. Current repo state
 
-Plan 1 is complete: the pnpm monorepo is up and `@mahjong/engine` is fully
-implemented and tested (183 tests, `pnpm test` and `pnpm typecheck` green). `packages/server`, `packages/bot`, and `packages/app`
-do not exist yet — Plans 2–4 have not been written.
+Plans 1 and 2 are complete: the monorepo, `@mahjong/engine`, `@mahjong/bot` and
+`@mahjong/server` are fully implemented and tested (249 tests, `pnpm test` and
+`pnpm typecheck` green). `packages/app` (Plan 3) is next.
 
 | File | Status | What it is |
 |---|---|---|
@@ -69,8 +69,8 @@ mahjong/
 ├── VERSION                 ✅ 4-digit ship version
 └── packages/
     ├── engine/  ✅ Pure rules logic. No UI, no network, no I/O. Plan 1.
-    ├── server/  📋 Authoritative Colyseus server; runs bots in-process. Plan 2.
-    ├── bot/     📋 AI player. Depends only on engine. Plan 2.
+    ├── server/  ✅ Authoritative Colyseus server; runs bots in-process. Plan 2.
+    ├── bot/     ✅ AI player. Depends only on engine. Plan 2.
     └── app/     📋 Expo React Native client. Plan 3.
 ```
 
@@ -171,29 +171,40 @@ winner legitimately holding 17.
 
 ---
 
-## 4. `packages/server` — authoritative multiplayer (Plan 2, not yet planned)
+## 4. `packages/server` — authoritative multiplayer (Plan 2) ✅
 
-From the spec:
+**`packages/server/README.md` is the wire-protocol contract** — Plan 3's client
+is written against it. Read that before touching messages.
 
-- **Owns all hidden information.** Wall and hands live only in server memory;
-  each client gets a Colyseus-filtered view — own hand, everyone's melds and
-  discards, wall count, never opponents' concealed tiles.
-- **Room lifecycle:** host creates → 6-character join code + deep link → players
-  join → host picks variant and house rules, fills empty seats with bots →
-  start. Rooms are ephemeral; no database in v1.
-- **Validates every action against the engine**; illegal actions are rejected.
-  Claim windows with priority resolution and a configurable timer.
-- **Disconnects:** seat held for the whole game, a bot takes over instantly, the
-  player resumes on reconnect. The other three never wait.
-- **Hosting:** persistent Node host (Fly.io / Railway class). State is in-memory,
-  so a process death loses in-flight games — accepted v1 limitation.
+| File | Status | Key exports | What it does |
+|---|---|---|---|
+| `src/protocol.ts` | ✅ | `SeatKind`, `SeatPublic`, `RoomConfig`, `DEFAULT_ROOM_CONFIG`, `JoinOptions`, `LobbyMessage`, `HandResultMessage`, `SeatStatusMessage`, `SessionEndMessage`, `C2S`, `S2C` | Every wire name and shape in one file, so client and server cannot drift. `SeatPublic` deliberately carries no `playerId`. |
+| `src/roomCode.ts` | ✅ | `ROOM_CODE_ALPHABET`, `generateRoomCode`, `normaliseRoomCode`, `isValidRoomCode` | Six characters from a 32-symbol alphabet with I/O/0/1 removed — codes get read aloud and typed off photos. |
+| `src/TableRoom.ts` | ✅ | `TableRoom` | The room: code reservation, seats, host controls, bots, game flow, timers, disconnect cover, session loop. `pushViews()` is the ONLY place game data leaves the process. |
+| `src/app.config.ts` | ✅ | default `appConfig` | One server definition shared by `index.ts` and every test, so tests exercise production wiring. |
+| `src/index.ts` | ✅ | — | `listen(appConfig, PORT)`. |
 
-## 5. `packages/bot` — AI seat-filler (Plan 2, not yet planned)
+- **Owns all hidden information.** The authoritative `GameState` is a plain
+  object, never a Colyseus schema — schema sync would broadcast one shared state
+  to everyone, exactly wrong here. Clients receive only `viewFor` output.
+- **Identity is `playerId`, not the connection.** That is what makes rejoining
+  reclaim the same seat.
+- **Everything scheduled is generation-guarded**, and re-armed after every
+  transition — otherwise a claim window deadlocks when the first response
+  invalidates the other seats' timers.
+- **Known v1 limitation:** one instance only; games die with the process.
 
-Consumes only the engine's legal-move and hand-evaluation APIs. Discard policy =
-shanten minimization + basic tile safety; claim policy = accept melds that
-improve expected hand value. Target strength: competent intermediate. Runs
-in-process in the server — a bot is just a seat whose actions come from code.
+## 5. `packages/bot` — AI seat-filler (Plan 2) ✅
+
+| File | Status | Key exports | What it does |
+|---|---|---|---|
+| `src/shanten.ts` | ✅ | `shanten16(concealed, meldCount)` | Distance to a win: −1 won, 0 tenpai, n otherwise. The tenpai boundary defers to `winningTiles` (exact); the search is consulted first and is a lower bound, so it short-circuits the expensive check. |
+| `src/bot.ts` | ✅ | `chooseBotAction(view, rng?)` | Shanten minimisation. Always wins when it can; claims only on a strict improvement; kongs when no worse; ties break honors → terminals → random. |
+| `src/index.ts` | ✅ | both of the above | — |
+
+Consumes **only** a `PlayerView`, never `GameState`, so it cannot see the wall
+or anyone's hand — which is what makes it honest cover for a dropped player.
+Measured at 181 wins / 19 draws per 200 bot-vs-bot hands (random play: 0/200).
 
 ## 6. `packages/app` — Expo React Native client (Plan 3, not yet planned)
 
