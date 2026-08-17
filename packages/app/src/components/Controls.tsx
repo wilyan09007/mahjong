@@ -7,12 +7,14 @@ import type { ActionBarModel } from '../state/selectors';
 
 /** A big, unmissable button. Touch targets never go below `tokens.hitSlop`. */
 export function Button({
-  label, onPress, tone = 'primary', disabled = false, testID,
+  label, onPress, tone = 'primary', disabled = false, compact = false, testID,
 }: {
   label: string;
   onPress: () => void;
   tone?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
+  /** Tighter, for the vertical action stack where several share the height. */
+  compact?: boolean;
   testID?: string;
 }): React.ReactElement {
   const background = tone === 'primary'
@@ -26,6 +28,7 @@ export function Button({
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.button,
+        compact && styles.buttonCompact,
         { backgroundColor: background, opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
       ]}
     >
@@ -44,11 +47,14 @@ export function Button({
  * accept it. There is no client-side guess about what is legal.
  */
 export function ActionBar({
-  model, onAction, disabled,
+  model, onAction, disabled, vertical = false,
 }: {
   model: ActionBarModel;
   onAction: (action: Action) => void;
   disabled: boolean;
+  /** Stack the buttons in a column instead of a row. The table uses this to
+   *  put them up the right-hand side, directly above the hand. */
+  vertical?: boolean;
 }): React.ReactElement | null {
   const hasAnything =
     model.discard || model.win || model.pass ||
@@ -56,13 +62,14 @@ export function ActionBar({
   if (!hasAnything && !model.needsSelection) return null;
 
   return (
-    <View style={styles.actionBar}>
+    <View style={[styles.actionBar, vertical && styles.actionBarVertical]}>
       {model.win && (
         <Button
           label={model.win.label}
           tone="primary"
           disabled={disabled}
           onPress={() => onAction(model.win!.action)}
+          compact={vertical}
           testID="action-win"
         />
       )}
@@ -73,6 +80,7 @@ export function ActionBar({
           tone="secondary"
           disabled={disabled}
           onPress={() => onAction(claim.action)}
+          compact={vertical}
           testID={`action-claim-${i}`}
         />
       ))}
@@ -83,6 +91,7 @@ export function ActionBar({
           tone="secondary"
           disabled={disabled}
           onPress={() => onAction(kong.action)}
+          compact={vertical}
           testID={`action-kong-${i}`}
         />
       ))}
@@ -92,6 +101,7 @@ export function ActionBar({
           tone="secondary"
           disabled={disabled}
           onPress={() => onAction(model.pass!)}
+          compact={vertical}
           testID="action-pass"
         />
       )}
@@ -101,6 +111,7 @@ export function ActionBar({
           tone="primary"
           disabled={disabled || !model.discard}
           onPress={() => model.discard && onAction(model.discard)}
+          compact={vertical}
           testID="action-discard"
         />
       )}
@@ -174,6 +185,21 @@ const styles = StyleSheet.create({
     gap: tokens.space.s,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // A column that wraps into a SECOND column to the left when there are more
+  // actions than fit the height, so a busy claim window can never run off the
+  // top of the screen.
+  actionBarVertical: {
+    flexDirection: 'column',
+    flexWrap: 'wrap',
+    alignContent: 'flex-end',
+    alignItems: 'stretch',
+    justifyContent: 'flex-end',
+    maxHeight: '100%',
+  },
+  buttonCompact: {
+    minHeight: tokens.hitSlop,
+    paddingHorizontal: tokens.space.m,
   },
   emoteRow: { flexDirection: 'row', gap: tokens.space.xs },
   emote: { padding: tokens.space.xs },

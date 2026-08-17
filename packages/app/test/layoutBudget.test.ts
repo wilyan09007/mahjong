@@ -1,4 +1,5 @@
-import { assertAtMost, assertAtLeast } from './support';
+import { assertAtMost, assertAtLeast, assertThat } from './support';
+import { pondColumns } from '../src/components/Board';
 import {
   COMPACT_ROW, EDGE_ON_TILE, PHONE_LANDSCAPE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
 } from '../src/theme/tokens';
@@ -32,15 +33,59 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('my hand, melds and action bar fit the bottom zone', () => {
+  it('my hand and the strip beneath it fit the bottom zone', () => {
+    // The action bar is NOT in this sum. It stacks up the right-hand side
+    // above the hand; when it shared the bottom zone it landed on the same
+    // line as the emote row and the two drew over each other.
+    //
+    // Melds, flowers and emotes share ONE strip below the hand — they sit in
+    // opposite corners of it, so the zone pays for the taller of them once,
+    // not for a row each.
     const handRow = tileHeight(TILE_SIZES.hand) + 10; // tiles lift 10px when selected
-    const melds = 30;
-    const actions = tokens.hitSlop + 12;
-    const total = handRow + melds + actions;
+    const strip = Math.max(30, 22 + 2 * tokens.space.xs);
+    const total = handRow + strip;
     assertAtMost(
-      total, TABLE_ZONES.bottom + 12,
-      `hand (${Math.round(handRow)}) + melds (${melds}) + actions (${actions}) ` +
+      total, TABLE_ZONES.bottom,
+      `hand (${Math.round(handRow)}) + the strip under it (${strip}) ` +
         `= ${Math.round(total)}px in a ${TABLE_ZONES.bottom}px zone`,
+    );
+  });
+
+  it('my melds and flowers fit the corner they share with the emotes', () => {
+    // Four melds and four flowers is a realistic busy hand. At mini size they
+    // have to fit one row, because the strip clips at 30px and a wrapped
+    // second row would vanish.
+    const tiles = 4 * 3 + 4;
+    const width = tiles * (TILE_SIZES.mini + tokens.space.xs);
+    const emotes = 8 * (22 + 2 * tokens.space.xs);
+    assertAtMost(
+      width + emotes, PHONE_LANDSCAPE.width,
+      `${tiles} mini tiles (${Math.round(width)}px) plus the emote row ` +
+        `(${emotes}px) overrun a ${PHONE_LANDSCAPE.width}px strip`,
+    );
+    assertAtMost(
+      tileHeight(TILE_SIZES.mini), 30,
+      'a mini tile is taller than the strip, so melds would be clipped',
+    );
+  });
+
+  it('a busy action stack fits the height it is given', () => {
+    // The stack is bounded by the two fixed zones and grows upward from the
+    // hand. Five simultaneous actions — win, two claims, a kong and pass — is
+    // the realistic worst case, and it must not run off the top.
+    const available = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
+    const five = 5 * tokens.hitSlop + 4 * tokens.space.s;
+    assertAtLeast(
+      available, tokens.hitSlop,
+      'there is not even room for one action button above the hand',
+    );
+    // It wraps into a second column when it cannot fit, so this documents WHEN
+    // that kicks in rather than demanding it never happens.
+    const fitsInOneColumn = five <= available;
+    assertThat(
+      fitsInOneColumn || available >= 3 * tokens.hitSlop + 2 * tokens.space.s,
+      `only ${available}px above the hand — fewer than three actions fit in a ` +
+        'column before wrapping, which makes the stack unreadable',
     );
   });
 
@@ -75,13 +120,19 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('four discard ponds fit side by side', () => {
-    const pond = 6 * (TILE_SIZES.discard + 1);
-    const total = 4 * pond + 3 * tokens.space.s;
-    assertAtMost(
-      total, PHONE_LANDSCAPE.width,
-      `four ponds span ${total}px on a ${PHONE_LANDSCAPE.width}px screen`,
-    );
+  it('four discard ponds fit side by side at any width', () => {
+    // Pond columns adapt to the width for exactly this reason: when four ponds
+    // did not fit, the row wrapped into a 2x2 block that swelled across the
+    // middle of the table and pressed up against the side seats.
+    for (const width of [PHONE_LANDSCAPE.width, 711, 800, 880, 1100]) {
+      const centre = width - 2 * tokens.space.s - 2 * TABLE_ZONES.side;
+      const total = 4 * pondColumns(width) * (TILE_SIZES.discard + 1) + 3 * tokens.space.s;
+      assertAtMost(
+        total, centre,
+        `at ${width}px wide the four ponds span ${total}px of ${centre}px ` +
+          'between the seats, so they would wrap into the side players',
+      );
+    }
   });
 
   it("a side opponent's 17 concealed tiles fit the middle band", () => {

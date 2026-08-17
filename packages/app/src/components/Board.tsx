@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
-import { COMPACT_ROW, EDGE_ON_TILE, TILE_SIZES, tokens } from '../theme/tokens';
+import { COMPACT_ROW, EDGE_ON_TILE, TABLE_ZONES, TILE_SIZES, tokens } from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
 
@@ -71,23 +71,35 @@ export function MeldGroup({
  * scrolling column.
  */
 export function DiscardPond({
-  tiles, highlightLast = false,
+  tiles, highlightLast = false, perRow = DISCARDS_PER_ROW,
 }: {
   tiles: TileKind[];
   highlightLast?: boolean;
+  /** Tiles per row. Narrower screens use fewer so all four ponds stay side by
+   *  side; wrapping the ponds themselves pushed them into the side seats. */
+  perRow?: number;
 }): React.ReactElement {
   return (
-    <View style={[styles.pond, { width: DISCARDS_PER_ROW * (TILE_SIZES.discard + 1) }]}>
+    <View style={[styles.pond, { width: perRow * (TILE_SIZES.discard + 1) }]}>
       {tiles.map((tile, i) => (
         <Tile
           key={`${tile}-${i}`}
           tile={tile}
           size="discard"
           selected={highlightLast && i === tiles.length - 1}
+          lift={false}
         />
       ))}
     </View>
   );
+}
+
+/** How many tiles fit in one pond row so that all four ponds sit side by side. */
+export function pondColumns(screenWidth: number): number {
+  const centre = screenWidth - 2 * tokens.space.s - 2 * TABLE_ZONES.side;
+  const perPond = (centre - 3 * tokens.space.s) / 4;
+  const fit = Math.floor(perPond / (TILE_SIZES.discard + 1));
+  return Math.max(3, Math.min(DISCARDS_PER_ROW, fit));
 }
 
 /** Mini tile width plus its gap, for sizing the concealed-tile block. */

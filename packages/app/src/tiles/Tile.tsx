@@ -5,11 +5,17 @@ import { TileFace } from './TileFace';
 import { TILE_SIZES, tileHeight, tokens, type TileSizeName } from '../theme/tokens';
 
 /**
- * A tile: the ivory body, a darker bottom edge for depth, and a face.
+ * A tile: the ivory body, a bottom edge for depth, and a face.
  *
  * The bottom edge strip does most of the work — it is what makes a flat
  * rectangle read as a physical object at 22px, where a drop shadow alone
  * disappears.
+ *
+ * That strip is ivory whichever way the tile faces, because a mahjong tile's
+ * BODY is ivory and only its back is coloured. Face-down tiles used to draw it
+ * in near-black felt, which read as a shadow gnawing the bottom off every tile
+ * in the opponent's hand across the table — the edge turned toward you is the
+ * lit one, not the dark one.
  */
 
 export interface TileProps {
@@ -17,6 +23,13 @@ export interface TileProps {
   size?: TileSizeName;
   faceUp?: boolean;
   selected?: boolean;
+  /**
+   * Whether a selected tile also lifts off the table. True in your hand, where
+   * it means "this is the one you are about to throw". False in a discard
+   * pond: there the ring marks the newest tile, and lifting it pushed it up
+   * behind the row above, which clipped it in half.
+   */
+  lift?: boolean;
   disabled?: boolean;
   onPress?: (tile: TileKind) => void;
   testID?: string;
@@ -27,6 +40,7 @@ export function Tile({
   size = 'hand',
   faceUp = true,
   selected = false,
+  lift = true,
   disabled = false,
   onPress,
   testID,
@@ -49,7 +63,7 @@ export function Tile({
           borderWidth: selected ? 2 : 0,
           // Lifting a selected tile is the clearest possible "this is the one
           // you are about to throw" without a label.
-          transform: [{ translateY: selected ? -10 : 0 }],
+          transform: [{ translateY: selected && lift ? -10 : 0 }],
         },
       ]}
     >
@@ -59,7 +73,7 @@ export function Tile({
           styles.edge,
           {
             height: edge,
-            backgroundColor: faceUp ? tokens.color.tileFaceEdge : tokens.color.tableFeltEdge,
+            backgroundColor: tokens.color.tileFaceEdge,
             borderBottomLeftRadius: tokens.tile.radius,
             borderBottomRightRadius: tokens.tile.radius,
           },

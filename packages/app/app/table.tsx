@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import type { Action, Seat, TileKind } from '@mahjong/engine';
@@ -9,7 +9,7 @@ import { C2S } from '../src/net/messages';
 import { actionBarModel, formatResult } from '../src/state/selectors';
 import { edgeFor } from '../src/state/tableLayout';
 import {
-  CenterInfo, DiscardPond, HandRow, MeldGroup, OpponentPanel,
+  CenterInfo, DiscardPond, HandRow, MeldGroup, OpponentPanel, pondColumns,
 } from '../src/components/Board';
 import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Controls';
 import { Tile } from '../src/tiles/Tile';
@@ -36,6 +36,7 @@ export default function TableScreen(): React.ReactElement {
   const clearHandResult = useGameStore((s) => s.clearHandResult);
 
   const [selectedTile, setSelectedTile] = useState<TileKind | null>(null);
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     // Orientation lock does not exist on web and is unavailable on some
@@ -59,6 +60,9 @@ export default function TableScreen(): React.ReactElement {
     return names;
   }, [lobby]);
 
+  // Enough columns that all four ponds stay side by side at this width.
+  const perRow = pondColumns(width);
+
   const model = useMemo(
     () => actionBarModel(view ?? null, selectedTile),
     [view, selectedTile],
@@ -79,6 +83,11 @@ export default function TableScreen(): React.ReactElement {
 
   return (
     <View style={styles.screen}>
+      {/* The playing surface. The screen itself is the darker rim all four
+          players sit at; this is the felt the wall and the ponds rest on.
+          Purely decorative, so it takes no touches. */}
+      <View style={styles.surface} pointerEvents="none" />
+
       {/* Opponents around the edges */}
       <View style={styles.topRow}>
         {view.opponents
@@ -117,9 +126,9 @@ export default function TableScreen(): React.ReactElement {
               point of the pond is being able to glance at what has been
               thrown, which a scroll view defeats. */}
           <View style={styles.ponds}>
-            <DiscardPond tiles={view.discards} highlightLast />
+            <DiscardPond tiles={view.discards} highlightLast perRow={perRow} />
             {view.opponents.map((o) => (
-              <DiscardPond key={o.seat} tiles={o.discards} />
+              <DiscardPond key={o.seat} tiles={o.discards} perRow={perRow} />
             ))}
           </View>
         </View>
@@ -142,14 +151,6 @@ export default function TableScreen(): React.ReactElement {
 
       {/* Me */}
       <View style={styles.bottom}>
-        <View style={styles.myMelds}>
-          <MeldGroup melds={view.melds} />
-          {view.flowers.length > 0 && (
-            <View style={styles.flowers}>
-              {view.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
-            </View>
-          )}
-        </View>
         <HandRow
           tiles={view.hand}
           selectedTile={selectedTile}
@@ -162,18 +163,28 @@ export default function TableScreen(): React.ReactElement {
           }}
           disabled={pendingAction}
         />
-        {/* Actions sit centred directly under the hand — they belong next to
-            the tiles they act on, not stranded in a corner. Emotes are
-            incidental, so they get the corner instead. */}
-        <View style={styles.controls}>
-          <ActionBar model={model} onAction={dispatch} disabled={pendingAction} />
-        </View>
-        <View style={styles.emoteBar}>
+        {/* The strip under the hand: my melds and flowers in the left corner,
+            emotes in the right. That band was empty felt, and melds sitting
+            above the hand competed with the tiles I am actually choosing
+            between. */}
+        <View style={styles.bottomStrip}>
+          <View style={styles.myMelds}>
+            <MeldGroup melds={view.melds} size="mini" />
+            {view.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
+          </View>
           <EmotePicker
             onSend={(emote) => send(C2S.emote, { emote })}
             disabled={pendingAction}
           />
         </View>
+      </View>
+
+      {/* Actions stack up the right-hand side, directly above the hand. They
+          used to sit centred under it, where they shared a line with the emote
+          row and the two overlapped. `box-none` so the empty column never
+          swallows a tap meant for the table underneath. */}
+      <View style={styles.actionStack} pointerEvents="box-none">
+        <ActionBar model={model} onAction={dispatch} disabled={pendingAction} vertical />
       </View>
 
       {/* Floating emote bubbles */}
@@ -245,9 +256,24 @@ export default function TableScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: tokens.color.tableFelt,
+    // The RIM, not the surface: the darker felt all four players sit at.
+    backgroundColor: tokens.color.tableFeltRim,
     paddingHorizontal: tokens.space.s,
     paddingVertical: tokens.space.xs,
+  },
+  // The playing surface, inset so the seats fall outside it. Only a shade
+  // lighter than the rim — enough to read as a surface with an edge, not
+  // enough to look like a green box drawn on a green screen.
+  surface: {
+    position: 'absolute',
+    top: TABLE_ZONES.top,
+    bottom: TABLE_ZONES.bottom,
+    left: TABLE_ZONES.side,
+    right: TABLE_ZONES.side,
+    backgroundColor: tokens.color.tableFelt,
+    borderRadius: tokens.radius.l,
+    borderWidth: 1,
+    borderColor: tokens.color.tableSurfaceEdge,
   },
   topRow: {
     height: TABLE_ZONES.top,
@@ -256,7 +282,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   middleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 0 },
-  sideColumn: { width: 96, justifyContent: 'center', alignItems: 'center' },
+  sideColumn: { width: TABLE_ZONES.side, justifyContent: 'center', alignItems: 'center' },
   centerColumn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
   ponds: {
     flexDirection: 'row',
@@ -268,13 +294,31 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bottom: { height: TABLE_ZONES.bottom, justifyContent: 'flex-end', gap: 2 },
-  myMelds: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
-    alignItems: 'flex-end', justifyContent: 'center', maxHeight: 30, overflow: 'hidden',
+  // The band under the hand, which was empty felt.
+  bottomStrip: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: tokens.space.s,
   },
-  flowers: { flexDirection: 'row', gap: 1 },
-  controls: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  emoteBar: { position: 'absolute', right: 0, bottom: 0 },
+  // Bottom-LEFT corner: my exposed melds and my flowers. Mini size so the row
+  // never wraps into a second line and gets clipped by the zone.
+  myMelds: {
+    flex: 1,
+    flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.xs,
+    alignItems: 'flex-end', justifyContent: 'flex-start',
+    maxHeight: 30, overflow: 'hidden',
+  },
+  // Bounded by the two fixed zones, bottom-aligned, so the stack grows UP from
+  // just above the hand and can never run off the top of the screen.
+  actionStack: {
+    position: 'absolute',
+    right: tokens.space.s,
+    top: TABLE_ZONES.top,
+    bottom: TABLE_ZONES.bottom,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
   // Clear of the top opponent's panel — the token, not a copy of its value,
   // which silently went stale when the zone grew to fit exposed melds.
   emoteLayer: { position: 'absolute', top: TABLE_ZONES.top, right: 12, gap: 2 },

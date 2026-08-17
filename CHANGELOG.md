@@ -4,6 +4,43 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.4.0] - 2026-08-17
+
+The table now looks like a table, and the controls stopped fighting each other.
+
+### Fixed
+
+- **Face-down tiles had their bottoms bitten off.** The depth strip under a
+  face-down tile was drawn in near-black felt, so every tile in the hand across
+  the table wore a dark band that read as a shadow eating it. That strip is
+  ivory now whichever way the tile faces, because a mahjong tile's *body* is
+  ivory and only its back is coloured — the edge turned toward you is the lit
+  one, not the dark one.
+- **The newest discard jumped up behind the row above it** and was clipped in
+  half. It inherited the hand's "lift" — the right signal for *the tile you are
+  about to throw*, wrong for *the tile that was just thrown*. The ring stays,
+  the lift does not.
+- **The discard ponds shoved into the side players.** Four ponds at a fixed six
+  tiles a row are wider than a narrow screen, so the row wrapped into a 2×2
+  block that swelled across the middle of the table. Columns now adapt to the
+  width so all four stay side by side, verified from 800px to 1100px.
+- **The action bar and the emote row shared a line and overlapped.**
+
+### Changed
+
+- **The table has depth.** The screen is now the rim all four players sit at,
+  with the playing surface inset a shade lighter and softly rounded — the wall
+  and the ponds rest on it, the seats fall outside it. Deliberately subtle: a
+  contrast test holds the two felts between 1.08:1 and 1.6:1, close enough to
+  read as one table lit unevenly rather than a green box on a green screen.
+- **Your melds and flowers moved into the empty band under your hand**, in the
+  bottom-left corner, sharing that strip with the emotes on the right. Above
+  the hand they competed with the tiles you are actually choosing between.
+- **The claim buttons (吃/碰/槓/胡) stack up the right-hand side**, directly
+  above your hand, instead of sitting centred beneath it. The column is bounded
+  by the two fixed zones and wraps into a second column rather than ever
+  running off the top of the screen.
+
 ## [0.2.3.1] - 2026-08-17
 
 ### Fixed

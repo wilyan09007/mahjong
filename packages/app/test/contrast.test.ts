@@ -1,4 +1,4 @@
-import { assertAtLeast, assertThat } from './support';
+import { assertAtLeast, assertAtMost, assertThat } from './support';
 import { contrastRatio, relativeLuminance } from '../src/theme/contrast';
 import { tokens } from '../src/theme/tokens';
 
@@ -63,13 +63,43 @@ describe('theme legibility', () => {
   });
 
   it('text on the felt is readable', () => {
+    // Both felts: the players sit at the RIM, so every opponent's name and
+    // tile count is read against `tableFeltRim`, not the playing surface.
+    for (const felt of ['tableFelt', 'tableFeltRim'] as const) {
+      assertAtLeast(
+        contrastRatio(color.textOnFelt, color[felt]), 4.5,
+        `primary text on ${felt} must meet normal-text contrast`,
+      );
+      assertAtLeast(
+        contrastRatio(color.textMuted, color[felt]), 3,
+        `even muted text has to be legible on ${felt} — it carries the ` +
+          "opponents' hand counts",
+      );
+    }
+  });
+
+  it('the rim reads as a different surface from the felt, but only just', () => {
+    // The whole point is depth without a visible band across the screen. Too
+    // close and the table is flat again; too far and it looks like a green box
+    // drawn on a green background.
+    const separation = contrastRatio(color.tableFelt, color.tableFeltRim);
     assertAtLeast(
-      contrastRatio(color.textOnFelt, color.tableFelt), 4.5,
-      'primary text on the table must meet normal-text contrast',
+      separation, 1.08,
+      `the rim is ${separation.toFixed(3)}:1 from the felt — indistinguishable, ` +
+        'so the table has no depth at all',
     );
+    assertAtMost(
+      separation, 1.6,
+      `the rim is ${separation.toFixed(3)}:1 from the felt — that reads as two ` +
+        'different greens rather than one table lit unevenly',
+    );
+  });
+
+  it('a face-down tile is visible on the rim as well as the felt', () => {
+    // Side and top opponents' tiles rest on the rim.
     assertAtLeast(
-      contrastRatio(color.textMuted, color.tableFelt), 3,
-      'even muted text has to be legible on the felt',
+      contrastRatio(color.tileBack, color.tableFeltRim), 2.5,
+      'tile backs on the rim, where the side players’ hands are drawn',
     );
   });
 

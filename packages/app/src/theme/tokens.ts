@@ -12,6 +12,15 @@ export const tokens = {
   color: {
     tableFelt: '#175E43',
     tableFeltEdge: '#0E3D2C',
+    /**
+     * The rim the players sit at, outside the playing surface. Only slightly
+     * darker than `tableFelt` on purpose — enough that the table reads as a
+     * surface with depth rather than a flat green field, not so much that it
+     * announces itself as a band across the screen.
+     */
+    tableFeltRim: '#124B36',
+    /** Hairline where the surface meets the rim. Catches light, very faintly. */
+    tableSurfaceEdge: 'rgba(255,255,255,0.06)',
     tileFace: '#F6F1E7',
     tileFaceEdge: '#D9CFBB',
     /**
@@ -91,8 +100,17 @@ export const TABLE_ZONES = {
    * but clipped the exposed tiles, and `overflow: hidden` hid that completely.
    */
   top: 64,
-  /** Your melds, flowers, hand and the action bar. */
-  bottom: 152,
+  /**
+   * Your melds and flowers, your hand, and the emote row. NOT the action
+   * buttons — those stack up the right-hand side, directly above the hand.
+   */
+  bottom: 140,
+  /**
+   * The rim down each side, where the left and right players sit. The playing
+   * surface is inset by this much, so their tiles rest on the rim rather than
+   * floating in the middle of the table.
+   */
+  side: 96,
 } as const;
 
 /**

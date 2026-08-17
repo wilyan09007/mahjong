@@ -38,7 +38,7 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (355 tests,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (362 tests,
 `pnpm test` and `pnpm typecheck` green).
 
 The app has been **played end to end on Expo web at phone-landscape size**
@@ -254,7 +254,7 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 | `src/strings.ts` | ✅ | `strings`, `EMOTES` | Every user-visible string, for localisation later. |
 | `src/tiles/tileData.ts` | ✅ | `FACE_DATA`, `FaceData`, `VIEWBOX`, `STICK_W`, `MIN_STICK_ASPECT`, `STICK_NODE` | All 42 faces as DATA in a 100×140 viewBox, with colours as token *names*. Data rather than 42 SVG files because a described face can be re-skinned and, crucially, **verified** — the tests assert the 5-dot tile has five dots, that no dots or sticks overlap, and that a 條 stick is at least `MIN_STICK_ASPECT` times taller than it is wide, which is the entire visual difference between 條 and 筒. Bamboo stick length is derived from each layout's tightest row gap, so respacing a layout cannot silently produce collisions. `STICK_NODE` holds the node-marking proportions **in the data layer on purpose**: it makes "a node must not swallow the stick" a checkable rule rather than a rendering opinion. |
 | `src/tiles/TileFace.tsx` | ✅ | `TileFace` | Renders one face from `FACE_DATA`, scaled to any width. |
-| `src/tiles/Tile.tsx` | ✅ | `Tile` | Tile body: ivory face, darker bottom edge for depth, gold border + lift when selected, `tileBack` when face-down. |
+| `src/tiles/Tile.tsx` | ✅ | `Tile` | Tile body: ivory face, ivory bottom edge for depth, gold border when selected, `tileBack` when face-down. The depth strip is ivory whichever way the tile faces — the body is ivory and only the back is coloured; drawn in dark felt it read as a shadow eating the bottom off every tile across the table. `lift` controls whether a selected tile also rises: true in hand, false in a pond, where lifting pushed it behind the row above and clipped it. |
 | `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `OpponentPanel`, `CenterInfo`, `SeatCard` | The board pieces. A concealed kong shows two backs and two faces, as it is laid on a real table. An opponent's exposed melds and flowers render **beside** their concealed tiles, never below: stacked under them the top seat's panel overflowed its zone and `overflow: hidden` erased the melds outright, hiding the strongest read you get on another player. A side seat's concealed tiles are 4px slivers grouped in fours — an unbroken column of 17 identical bars cannot be counted, and their count also shows as a number by the name. |
 | `src/components/Controls.tsx` | ✅ | `Button`, `ActionBar`, `EmotePicker`, `ErrorToast`, `ClaimCountdown` | Buttons come straight from `actionBarModel`, so one exists iff the server would accept it. |
 | `src/state/tableLayout.ts` | ✅ | `edgeFor`, `discardGrid`, `isVerticalEdge`, `rotationFor` | Pure seat→edge and pond-grid maths. I am always at the bottom of my own screen. |
@@ -265,7 +265,7 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 | `src/net/connection.ts` | ✅ | `createRoom`, `joinRoom`, `send`, `playAction`, `leaveRoom`, `classifyJoinFailure`, `SERVER_URL` | Thin colyseus.js wrapper; funnels every message into the store. Rejoin-by-`playerId` with backoff, since the server restores seats by id. `classifyJoinFailure` splits a refused join into no-such-table / table-full / unreachable, because only the last one should send someone to their network settings. Codes pinned against a real server in `packages/server/test/lobby.test.ts`. |
 | `src/net/deviceId.ts` | ✅ | `getDeviceId`, `getDisplayName`, `setDisplayName` | AsyncStorage-persisted device identity. No accounts in v1. |
 | `app/_layout.tsx` | ✅ | — | Holds the splash until the CJK font loads — every tile glyph uses it. Renders the stack **headerless**: 64px of chrome is 18% of a landscape phone, and every screen carries its own title and its own way out. |
-| `app/index.tsx` · `lobby.tsx` · `table.tsx` · `results.tsx` · `join/[code].tsx` | ✅ | — | The four screens plus the `mahjong://join/CODE` deep link. |
+| `app/index.tsx` · `lobby.tsx` · `table.tsx` · `results.tsx` · `join/[code].tsx` | ✅ | — | The four screens plus the `mahjong://join/CODE` deep link. The table is built from fixed zones: `TABLE_ZONES.top` for the seat across from you, `.bottom` for your hand and the strip under it, `.side` for the rim the left and right players sit at. The felt between those zones is a separate inset `surface` view, a shade lighter than the rim, which is what gives the table depth. Action buttons are NOT in the bottom zone — they stack up the right-hand side above the hand. |
 | `app/dev-gallery.tsx` | ✅ | — | All 42 faces at every size, plus melds. **This is the screen the art gets judged on** — geometry tests prove dots do not overlap, but only an eye can say whether 22px 九萬 is legible. |
 
 **Testing note (hard-won):** all component tests live in ONE file and never call
