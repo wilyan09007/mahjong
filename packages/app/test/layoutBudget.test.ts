@@ -33,39 +33,40 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('my hand and the strip beneath it fit the bottom zone', () => {
+  it('my melds, hand and the strip beneath it fit the bottom zone', () => {
     // The action bar is NOT in this sum. It stacks up the right-hand side
     // above the hand; when it shared the bottom zone it landed on the same
-    // line as the emote row and the two drew over each other.
+    // line as the emote row and the two drew over each other. Its old space is
+    // what the melds row now occupies.
     //
-    // Melds, flowers and emotes share ONE strip below the hand — they sit in
-    // opposite corners of it, so the zone pays for the taller of them once,
-    // not for a row each.
+    // Flowers and emotes share ONE strip below the hand, in opposite corners,
+    // so the zone pays for the taller of them once rather than a row each.
+    const melds = 40;
     const handRow = tileHeight(TILE_SIZES.hand) + 10; // tiles lift 10px when selected
-    const strip = Math.max(30, 22 + 2 * tokens.space.xs);
-    const total = handRow + strip;
+    const strip = Math.max(tileHeight(TILE_SIZES.mini), 22 + 2 * tokens.space.xs);
+    const total = melds + handRow + strip;
     assertAtMost(
       total, TABLE_ZONES.bottom,
-      `hand (${Math.round(handRow)}) + the strip under it (${strip}) ` +
-        `= ${Math.round(total)}px in a ${TABLE_ZONES.bottom}px zone`,
+      `melds (${melds}) + hand (${Math.round(handRow)}) + the strip under it ` +
+        `(${Math.round(strip)}) = ${Math.round(total)}px in a ` +
+        `${TABLE_ZONES.bottom}px zone`,
+    );
+    assertAtLeast(
+      melds, tileHeight(TILE_SIZES.meld),
+      'the melds row is shorter than a meld tile, so completed sets would be ' +
+        'clipped in the one place they are meant to be readable',
     );
   });
 
-  it('my melds and flowers fit the corner they share with the emotes', () => {
-    // Four melds and four flowers is a realistic busy hand. At mini size they
-    // have to fit one row, because the strip clips at 30px and a wrapped
-    // second row would vanish.
-    const tiles = 4 * 3 + 4;
-    const width = tiles * (TILE_SIZES.mini + tokens.space.xs);
+  it('my flowers fit the corner they share with the emotes', () => {
+    // All eight flowers is the extreme, and they must stay on one row: the
+    // strip clips at mini-tile height and a wrapped second row would vanish.
+    const flowers = 8 * (TILE_SIZES.mini + tokens.space.xs);
     const emotes = 8 * (22 + 2 * tokens.space.xs);
     assertAtMost(
-      width + emotes, PHONE_LANDSCAPE.width,
-      `${tiles} mini tiles (${Math.round(width)}px) plus the emote row ` +
+      flowers + emotes, PHONE_LANDSCAPE.width,
+      `eight flowers (${Math.round(flowers)}px) plus the emote row ` +
         `(${emotes}px) overrun a ${PHONE_LANDSCAPE.width}px strip`,
-    );
-    assertAtMost(
-      tileHeight(TILE_SIZES.mini), 30,
-      'a mini tile is taller than the strip, so melds would be clipped',
     );
   });
 

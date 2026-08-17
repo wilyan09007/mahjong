@@ -206,24 +206,38 @@ export function OpponentPanel({
   );
 }
 
-/** Wall count, round wind, dealer and whose turn it is. */
-export function CenterInfo({ view, seatNames }: {
+/**
+ * Round wind, wall count and whose turn it is.
+ *
+ * Lives in a corner of the table, not the middle. In the middle it sat exactly
+ * where the eye goes to read the ponds, and a scoreboard has no business in the
+ * playing area — on a real table this information is on the indicator at the
+ * edge, not in the centre where the tiles are.
+ */
+export function TableStatus({ view, seatNames }: {
   view: PlayerView;
   seatNames: Record<number, string>;
 }): React.ReactElement {
   const turnName = seatNames[view.turn] ?? `Seat ${view.turn + 1}`;
   return (
-    <View style={styles.center}>
-      <Text style={styles.centerWind}>{view.roundWind}</Text>
-      <Text style={styles.centerWall}>{strings.wallRemaining(view.wallCount)}</Text>
-      <Text style={styles.centerTurn} numberOfLines={1}>
+    <View style={styles.status}>
+      <View style={styles.statusHead}>
+        <Text style={styles.statusWind}>{view.roundWind}</Text>
+        <Text style={styles.statusWall}>{strings.wallRemaining(view.wallCount)}</Text>
+      </View>
+      <Text style={styles.statusTurn} numberOfLines={1}>
         {view.turn === view.seat ? strings.yourTurn : turnName}
       </Text>
-      {view.lastDiscard && (
-        <View style={styles.lastDiscard}>
-          <Tile tile={view.lastDiscard.tile} size="discard" selected />
-        </View>
-      )}
+    </View>
+  );
+}
+
+/** The tile just thrown, alone in the middle of the table where it landed. */
+export function LastDiscard({ view }: { view: PlayerView }): React.ReactElement | null {
+  if (!view.lastDiscard) return null;
+  return (
+    <View style={styles.lastDiscard}>
+      <Tile tile={view.lastDiscard.tile} size="discard" selected lift={false} />
     </View>
   );
 }
@@ -316,12 +330,13 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.tileFace,
   },
   edgeOnGroupBreak: { marginBottom: EDGE_ON_TILE.groupGap },
-  center: { alignItems: 'center', gap: 1 },
-  centerWind: { color: tokens.color.accentGold, fontSize: 22, fontWeight: '700' },
-  centerWall: { color: tokens.color.textOnFelt, fontSize: 12 },
-  centerTurn: { color: tokens.color.textMuted, fontSize: 11 },
-  // Clear of the turn text above it — the raised tile's shadow crowded it.
-  lastDiscard: { marginTop: tokens.space.s },
+  // Corner block: wind and wall on one line, whose turn under it.
+  status: { alignItems: 'flex-start', gap: 1 },
+  statusHead: { flexDirection: 'row', alignItems: 'baseline', gap: tokens.space.xs },
+  statusWind: { color: tokens.color.accentGold, fontSize: 20, fontWeight: '700' },
+  statusWall: { color: tokens.color.textOnFelt, fontSize: 12 },
+  statusTurn: { color: tokens.color.textMuted, fontSize: 11 },
+  lastDiscard: { alignItems: 'center' },
   seatCard: {
     backgroundColor: tokens.color.surfaceRaised,
     borderRadius: tokens.radius.m,

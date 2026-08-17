@@ -9,7 +9,7 @@ import { C2S } from '../src/net/messages';
 import { actionBarModel, formatResult } from '../src/state/selectors';
 import { edgeFor } from '../src/state/tableLayout';
 import {
-  CenterInfo, DiscardPond, HandRow, MeldGroup, OpponentPanel, pondColumns,
+  DiscardPond, HandRow, LastDiscard, MeldGroup, OpponentPanel, TableStatus, pondColumns,
 } from '../src/components/Board';
 import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Controls';
 import { Tile } from '../src/tiles/Tile';
@@ -88,6 +88,13 @@ export default function TableScreen(): React.ReactElement {
           Purely decorative, so it takes no touches. */}
       <View style={styles.surface} pointerEvents="none" />
 
+      {/* Round wind, wall count and whose turn — in the corner of the surface
+          rather than the middle of it, which is where the ponds want to be
+          read. */}
+      <View style={styles.status} pointerEvents="none">
+        <TableStatus view={view} seatNames={seatNames} />
+      </View>
+
       {/* Opponents around the edges */}
       <View style={styles.topRow}>
         {view.opponents
@@ -121,7 +128,7 @@ export default function TableScreen(): React.ReactElement {
         </View>
 
         <View style={styles.centerColumn}>
-          <CenterInfo view={view} seatNames={seatNames} />
+          <LastDiscard view={view} />
           {/* Four ponds side by side rather than a scrolling stack — the whole
               point of the pond is being able to glance at what has been
               thrown, which a scroll view defeats. */}
@@ -151,6 +158,11 @@ export default function TableScreen(): React.ReactElement {
 
       {/* Me */}
       <View style={styles.bottom}>
+        {/* Completed sets sit directly above my remaining tiles — they are part
+            of the hand I am reading, so they belong next to it. */}
+        <View style={styles.myMelds}>
+          <MeldGroup melds={view.melds} />
+        </View>
         <HandRow
           tiles={view.hand}
           selectedTile={selectedTile}
@@ -163,13 +175,11 @@ export default function TableScreen(): React.ReactElement {
           }}
           disabled={pendingAction}
         />
-        {/* The strip under the hand: my melds and flowers in the left corner,
-            emotes in the right. That band was empty felt, and melds sitting
-            above the hand competed with the tiles I am actually choosing
-            between. */}
+        {/* The strip under the hand: flowers in the left corner, emotes in the
+            right. Flowers only — they are scoring bookkeeping, not part of the
+            hand you are reading. */}
         <View style={styles.bottomStrip}>
-          <View style={styles.myMelds}>
-            <MeldGroup melds={view.melds} size="mini" />
+          <View style={styles.myFlowers}>
             {view.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
           </View>
           <EmotePicker
@@ -301,9 +311,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: tokens.space.s,
   },
-  // Bottom-LEFT corner: my exposed melds and my flowers. Mini size so the row
-  // never wraps into a second line and gets clipped by the zone.
+  // Directly above the hand, centred over it: my completed sets.
   myMelds: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
+    alignItems: 'flex-end', justifyContent: 'center',
+    maxHeight: 40, overflow: 'hidden',
+  },
+  // Bottom-LEFT corner: flowers only, mini size, one row.
+  myFlowers: {
     flex: 1,
     flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.xs,
     alignItems: 'flex-end', justifyContent: 'flex-start',
@@ -311,6 +326,12 @@ const styles = StyleSheet.create({
   },
   // Bounded by the two fixed zones, bottom-aligned, so the stack grows UP from
   // just above the hand and can never run off the top of the screen.
+  // Tucked into the surface's top-left corner.
+  status: {
+    position: 'absolute',
+    top: TABLE_ZONES.top + tokens.space.s,
+    left: TABLE_ZONES.side + tokens.space.m,
+  },
   actionStack: {
     position: 'absolute',
     right: tokens.space.s,

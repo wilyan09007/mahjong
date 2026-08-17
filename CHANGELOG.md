@@ -4,6 +4,22 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.4.1] - 2026-08-17
+
+### Changed
+
+- **The round wind and wall count moved out of the middle of the table** and
+  into the corner of the playing surface. They sat exactly where your eye goes
+  to read the ponds; a scoreboard belongs at the edge, the way the indicator
+  does on a real table. The tile just thrown stays in the middle, where it
+  landed.
+- **Completed sets sit directly above your remaining tiles**, in the space the
+  action bar left behind — they are part of the hand you are reading, so they
+  belong beside it rather than in a corner.
+- **The bottom-left corner is flowers only.** Flowers are scoring bookkeeping
+  rather than part of the hand, so they are the one thing that can live away
+  from the tiles.
+
 ## [0.2.4.0] - 2026-08-17
 
 The table now looks like a table, and the controls stopped fighting each other.
