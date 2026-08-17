@@ -110,20 +110,45 @@ export function checkInvariants(s: GameState): string[] {
     p.melds.forEach((m, i) => out.push(...meldViolations(seat, m, i)));
 
     // A kong occupies four tiles but only three "slots", because its
-    // replacement draw puts the count back. So every seat is always worth 16,
-    // or 17 while it is their turn to discard.
+    // replacement draw puts the count back. So a seat is worth 16, except:
+    //   - the seat on turn may hold 17 (it has drawn and not yet discarded),
+    //   - the WINNER holds 17 for good, that being the winning hand itself.
     const value = p.hand.length + p.melds.length * 3;
-    const onTurn = seat === s.turn && s.phase !== 'finished';
-    const allowed = onTurn ? [16, 17] : [16];
+    let allowed: number[];
+    let why: string;
+    if (s.result?.type === 'win') {
+      const isWinner = seat === s.result.winner;
+      allowed = isWinner ? [17] : [16];
+      why = isWinner ? ' as the winner' : '';
+    } else {
+      const onTurn = seat === s.turn && s.phase !== 'finished';
+      allowed = onTurn ? [16, 17] : [16];
+      why = onTurn ? ' while on turn' : '';
+    }
     if (!allowed.includes(value)) {
       out.push(
         `seat ${seat} hand value is ${value} (hand ${p.hand.length} + ${p.melds.length} melds), ` +
-          `expected ${allowed.join(' or ')}${onTurn ? ' while on turn' : ''}`,
+          `expected ${allowed.join(' or ')}${why}`,
       );
     }
   }
 
-  // 4. Phase consistency.
+  // 4. The drawn tile must still be where a self-win would look for it.
+  //    Regression guard: a kong spends the previously drawn tile, and a stale
+  //    lastDrawnTile let a following self-win score 槓上開花 against a tile no
+  //    longer in the hand. Checking it here catches that at the kong, not
+  //    several actions later inside scoring.
+  if (s.phase === 'awaiting-discard' && s.drewThisTurn && s.lastDrawnTile !== null) {
+    if (!s.players[s.turn].hand.includes(s.lastDrawnTile)) {
+      out.push(
+        `lastDrawnTile ${s.lastDrawnTile} is not in seat ${s.turn}'s hand ` +
+          `(${s.players[s.turn].hand.join(' ')}) — a self-win would score against ` +
+          `a tile that is not there`,
+      );
+    }
+  }
+
+  // 5. Phase consistency.
   if (s.phase === 'awaiting-claims' && s.pendingClaims === null) {
     out.push('phase is awaiting-claims but pendingClaims is null');
   }

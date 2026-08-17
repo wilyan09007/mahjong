@@ -62,6 +62,18 @@ describe('concealed kong', () => {
     const s1 = applyAction(rig({ 0: hand }), { type: 'concealed-kong', seat: 0, tile: '5t' });
     expect(legalActions(s1, 0).some((a) => a.type === 'discard')).toBe(true);
   });
+
+  it('points lastDrawnTile at the replacement, not the spent tile', () => {
+    // Regression: the kong spends the tile that was drawn a moment ago. If
+    // lastDrawnTile is not moved to the replacement, a self-win right after
+    // the kong scores 槓上開花 against a tile that has left the hand.
+    const s0 = rig({ 0: hand });
+    const drawnBefore = s0.lastDrawnTile;
+    const s1 = applyAction(s0, { type: 'concealed-kong', seat: 0, tile: '5t' });
+    expect(s1.lastDrawnTile).not.toBeNull();
+    expect(s1.lastDrawnTile).not.toBe(drawnBefore);
+    expect(s1.players[0].hand).toContain(s1.lastDrawnTile!);
+  });
 });
 
 describe('added kong and robbing', () => {
@@ -127,6 +139,10 @@ describe('added kong and robbing', () => {
     expect(s2.players[0].hand).toHaveLength(17); // 17 - 1 kong tile + 1 replacement
     expect(s2.lastDrawWasReplacement).toBe(true);
     expect(s2.wasKongRob).toBe(false);
+    // Same regression as the concealed-kong case: the spent 'ws' must not
+    // remain on record as the drawn tile.
+    expect(s2.lastDrawnTile).not.toBe('ws');
+    expect(s2.players[0].hand).toContain(s2.lastDrawnTile!);
   });
 
   it('completes immediately when nobody could possibly rob', () => {

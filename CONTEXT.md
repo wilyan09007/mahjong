@@ -38,7 +38,7 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plan 1 is complete: the pnpm monorepo is up and `@mahjong/engine` is fully
-implemented and tested. `packages/server`, `packages/bot`, and `packages/app`
+implemented and tested (173 tests, `pnpm test` and `pnpm typecheck` green). `packages/server`, `packages/bot`, and `packages/app`
 do not exist yet — Plans 2–4 have not been written.
 
 | File | Status | What it is |
@@ -93,17 +93,17 @@ dependencies. Vitest for tests. Every `src/*.ts` has a matching `test/*.test.ts`
 | `src/wall.ts` | ✅ | Task 3 | `mulberry32(seed)`, `buildWall(seed)` | The engine's *only* source of randomness. `buildWall` returns a deterministic shuffled copy of the 144 tiles. The array is never mutated after creation — draws move the `wallFront`/`wallBack` indexes instead. |
 | `src/melds.ts` | ✅ | Task 4 | `MeldType`, `Meld`, `chowOptions`, `canPung`, `canExposedKong`, `concealedKongOptions`, `addedKongOptions` | Meld shape and pure legality predicates. `Meld = { type, tiles, concealed, claimedFrom }`. No state, no turn logic — just "can this hand claim this tile?" |
 | `src/win.ts` | ✅ | Task 5 | `WinDecomposition`, `isWinningHand`, `decomposeWin`, `decomposeWinAll`, `winningTiles` | Win-shape detection over a 34-slot count array with recursive set removal. Win = N sets + exactly one pair (`len % 3 === 2`). `decomposeWin` returns one valid `{ sets, pair }` (kongs live in melds, never here). `decomposeWinAll` returns EVERY reading — scoring needs it because `1t1t1t 2t2t2t 3t3t3t` is both three pungs (碰碰胡) and three runs, and Taiwanese practice scores the winner best reading. `winningTiles` lists the kinds that complete a `len % 3 === 1` hand — also used for the 獨聽 single-wait tai. |
-| `src/deal.ts` | ✅ | Task 6 | `DealResult`, `dealHands(tiles, dealer)` | The opening deal: 16 per seat (+1 to the dealer) from the wall front, then repeated flower exposure/replacement from the wall back until no hand holds a flower. Returns hands, flowers, and the resulting `wallFront`/`wallBack`. |
+| `src/deal.ts` | ✅ | Task 6 | `DealResult`, `dealHands(tiles, dealer)` | The opening deal: 16 per seat (+1 to the dealer) from the wall front, then repeated flower exposure/replacement from the wall back until no hand holds a flower. Returns hands, flowers, `wallFront`/`wallBack`, and `dealerLastTile` — the dealer 17th tile, read **before** sorting because sorting destroys the record of which tile arrived last and a 天胡 needs it by identity. |
 | `src/game.ts` | ✅ | Tasks 6–9, 11 | `IllegalActionError`, `Phase`, `PlayerState`, `HandRules`, `DEFAULT_RULES`, `WALL_FLOOR`, `GameState`, `HandResult`, `Action`, `newHand`, `legalActions`, `applyAction`; re-exports `ClaimAction`/`ClaimKind`/`ClaimOption`/`PendingClaims` | **The core state machine and the file you'll touch most.** Holds the state shape, the reducer, turn flow (discard → claim window → draw), flower auto-replacement, both kong flows, robbing the kong, exhaustive draw, and result assembly. Grows across four tasks; see the state/action reference below. |
 | `src/claims.ts` | ✅ | Task 8 | `ClaimKind`, `ClaimAction`, `ClaimOption`, `PendingClaims`, `computeClaimOptions`, `eligibleSeats`, `resolveClaims` | The claim window on a discard. Computes every legal claim (chow only for the seat after the discarder; the discarder never claims own tile) and resolves priority once all eligible seats respond: **win > kong = pung > chow**, tie-broken by seat order after `from`. All passed → `null`. `PendingClaims = { tile, from, source, options, responses }` — `source` is `discard` or `kong-rob` (Task 9 reuses the same window for 搶槓), and `from`/`tile` are what make the tie-break and execution self-contained. |
-| `src/scoring/taiwanese.ts` | ✅ | Task 10 | `TaiItem`, `ScoreContext`, `scoreTaiwaneseHand` | The 22-row tai table as small named predicates (`isAllPungs`, `isHalfFlush`, `dragonSetCount`, …) over `{sets, pair, melds, flowers, ctx}`. Handles suppression rules — 大三元/小三元 replace individual 三元牌, 大四喜/小四喜 replace wind tai, 五暗刻 replaces 四暗刻. Returns `{ tai, breakdown }` for the winner best reading — every `decomposeWinAll` reading is scored and the highest total kept, because the same tiles can be pungs or runs and those score differently. The breakdown is what the Results screen renders line-by-line. Values verified against 台灣十六張麻將台數表 (minwt.com/life/7062.html). |
+| `src/scoring/taiwanese.ts` | ✅ | Task 10 | `TaiItem`, `ScoreContext`, `scoreTaiwaneseHand` | The 22-row tai table. Melds plus one reading of the concealed tiles are normalised into a `Shape` of `ScoredSet { tiles, kind: chow|pung, concealed }` (a kong scores as a pung), and `evaluate(ctx, shape, singleWait)` walks the table over it. Set concealment is per-set, not per-hand: winning on a discard demotes the one pung that tile completed, so a four-pung hand won off a discard cannot claim 四暗刻. Handles suppression rules — 大三元/小三元 replace individual 三元牌, 大四喜/小四喜 replace wind tai, 五暗刻 replaces 四暗刻. Returns `{ tai, breakdown }` for the winner best reading — every `decomposeWinAll` reading is scored and the highest total kept, because the same tiles can be pungs or runs and those score differently. The breakdown is what the Results screen renders line-by-line. Values verified against 台灣十六張麻將台數表 (minwt.com/life/7062.html). |
 | `src/scoring/payments.ts` | ✅ | Task 10 | `computePayments(args)` | Turns tai into per-seat net points summing to zero. Dealer involvement lives *here*, not in the tai table: `dealerExtra = 1 + 2 * dealerStreak` tai added when payer or payee is the dealer. Self-draw → all three pay; discard win → the discarder alone pays. |
 | `src/session.ts` | ✅ | Task 11 | `SessionParams`, `nextHandParams`, `roundsCompleted`, `isSessionOver` | Between-hands bookkeeping. Dealer win or exhaustive draw → dealer stays, streak +1. Otherwise the deal advances and the streak resets; when it passes seat 3 → 0 the round wind advances E→S→W→N. `isSessionOver` counts completed laps against the configured round count, and accepts **only 1–3**: the round wind is the sole lap counter and wraps N→E, so a 4-round 全莊 session is indistinguishable from a fresh one. It throws with that explanation rather than answering wrongly — adding a `roundsCompleted` field to `SessionParams` is the fix, and belongs with Plan 2 room config. |
 | `src/variant.ts` | ✅ | Task 11 | `VariantId`, `Variant`, `TAIWANESE`, `VARIANTS` registry, `resolveVariant` | The pluggability seam for Cantonese (v1.1). `Variant = { id, handSize, score(ctx) }`. `game.ts` calls `variant.score`, never the Taiwanese module directly — and stores only `variantId: 'taiwanese'` on state, resolving through the `VARIANTS` registry, so `GameState` stays JSON-serializable. |
 | `src/debug.ts` | ✅ | extra | `formatTile`, `formatTiles`, `formatMeld`, `formatAction`, `formatResult`, `formatPlayer`, `formatState`, `formatLegalActions`, `traceAction`, `traceHand` | **Read this when something is wrong.** Pure renderers — every function RETURNS a string, nothing prints, so the engine stays I/O-free and the caller picks where verbose output goes. `formatState` is the paste-into-a-bug-report dump; `traceAction` applies an action and diffs the before/after (hand sizes, new melds, wall movement, hand-value anomalies); `traceHand` plays a whole hand and returns the transcript. Tile codes are always shown next to glyphs: the code pastes into a fixture, the glyph reads. |
 | `src/invariants.ts` | ✅ | extra | `checkInvariants`, `assertInvariants`, `EngineInvariantError` | Structural properties that must hold in EVERY reachable state: exact multiset tile conservation (not just a count of 144), wall index sanity, no flowers in hand, sorted hands, well-formed melds, hand value 16/17, phase↔pendingClaims↔result consistency, payments summing to zero. `checkInvariants` returns every violation; `assertInvariants` throws with all of them plus the full state dump. **A violation is always an engine bug — fix the engine, never weaken the invariant.** |
 | `src/index.ts` | ✅ | Tasks 1, 11 | Everything public from Tasks 2–11 | The package's public surface. The simulation test imports from here only, proving this surface is enough to run complete games — which is exactly how the server and bots consume it. |
-| `README.md` | 📋 | Task 12 | — | Consumer guide: the three-function contract, tile-code table, phase machine, tai table, and the warning that the server must never send `tiles`, `wallFront/Back`, or other players' `hand` to clients. |
+| `README.md` | ✅ | Task 12 | — | Consumer guide: the three-function contract, tile-code table, phase diagram, hand-size rule, full tai table with suppression, the debugging entry points, and a **red-box warning listing exactly which `GameState` fields a server must never send a client** (`tiles`, `wallFront`/`wallBack`, `seed`, other players' `hand`) alongside what is safe to send. |
 
 ### `GameState` at a glance
 
@@ -132,10 +132,36 @@ chow carries `chowTiles`) · `pass`. Anything illegal throws `IllegalActionError
 
 ### Test files
 
-One per source module, plus `test/simulation.test.ts` (Task 12) — 200 random
-full games asserting 144 tiles are always conserved, some seat can always act,
-payments always sum to zero, and no hand ever exceeds 1000 steps. **A simulation
-failure is a real engine bug; fix the engine, never weaken the invariant.**
+One per source module (`tiles`, `wall`, `melds`, `win`, `deal`, `turnflow`,
+`claims`, `kong`, `scoring`, `session`, `debug`), plus `test/simulation.test.ts`.
+**173 tests, no mocks anywhere** — no `vi.mock`, no stubs, no fakes; every test
+drives the real engine with real tiles.
+
+`simulation.test.ts` imports from `../src/index.js` ONLY, which is how we know
+the public surface suffices to play complete games. It runs **two** policies
+because they prove different things:
+
+- **Uniform random**, 200 hands — explores the state space by taking sequences
+  a sensible player never would. It essentially never wins (random discarding
+  does not converge on a winning shape), so it cannot cover scoring.
+- **Greedy** (win → kong → claim → discard least-connected tile), 200 hands —
+  actually reaches wins (~177/200), which is the only way the scoring and
+  payment paths run end to end.
+
+Both check `checkInvariants` at every single step and fail with the seed, the
+step number, the last 40 actions and a full `formatState` dump. Coverage guards
+assert that wins, self-draws and kongs actually occurred — otherwise a policy
+change could silently stop testing those paths.
+
+Two white-box files (`claims`, `kong`) overwrite hands to build exact positions
+and therefore break tile conservation on purpose; conservation is proved instead
+by `turnflow` and `simulation`, which rig nothing.
+
+**A simulation failure is a real engine bug; fix the engine, never weaken the
+invariant.** It has already earned its keep twice: it caught `lastDrawnTile`
+going stale across a kong (a self-win would have scored 槓上開花 against a tile
+no longer in the hand) and an over-strict hand-value invariant that rejected the
+winner legitimately holding 17.
 
 ---
 

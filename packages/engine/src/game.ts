@@ -260,6 +260,11 @@ function drawReplacementFor(s: GameState, seat: Seat): boolean {
     s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
     s.lastDrawWasReplacement = true;
     s.drewThisTurn = true;
+    // MUST be updated here too. A kong spends the previously drawn tile, so
+    // leaving lastDrawnTile stale lets a following self-win claim a winning
+    // tile that is no longer in the hand — 槓上開花 scored against the wrong
+    // tile, or a crash inside scoring.
+    s.lastDrawnTile = tile;
     if (wallRemaining(s) <= WALL_FLOOR) s.wasLastTile = true;
     return true;
   }
