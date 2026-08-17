@@ -4,6 +4,48 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.5.0] - 2026-08-17
+
+A placement pass over the whole table, done by measuring every component's
+rectangle rather than looking at it. Three of the five problems below were
+invisible in a screenshot and obvious in the numbers.
+
+### Fixed
+
+- **A side player's exposed melds ran off the screen.** The right seat's melds
+  reached 31px past the right edge; the left seat's spilled 80px out across the
+  playing surface. Same React Native trap as the discard ponds: a meld is a
+  non-wrapping row, and a non-wrapping row inside a `maxWidth` box does not
+  shrink, it overflows. Side seats now draw their exposed tiles as a grid with
+  an EXPLICIT width, at a new `micro` size, so four melds and their flowers fit
+  the rim. The flattening keeps the concealed-kong rule — two of an 暗槓's four
+  tiles stay face down — and that rule is now a pure function with a test,
+  because asserting it through the rendered SVG silently proved nothing.
+- **The action stack sat on the right player's tile count**, clipping the panel
+  corner by 60×8px — the last of the very slivers that panel exists to let you
+  count. It now stops above the emote row.
+- **The Discard button covered the right end of your own hand** on a narrow
+  window: 17 tiles at full size take 91% of 711px, leaving no room beside it.
+  The hand is sized to what is actually free beside the action gutter, never
+  larger than before, so nothing changes on the 880px target.
+- **The status block was anchored to the playing surface, not the screen.**
+- Seats and melds crossed the surface's rounded edge by 3–4px, which read as
+  the felt being torn rather than tiles resting on a table. The surface is inset
+  clear of every zone now.
+
+### Changed
+
+- **A side player's exposed tiles are mirrored** so they always lie on the
+  table side of their concealed stack, never the screen side. Un-mirrored, the
+  right seat's melds were shoved against the bezel while the left seat's sat
+  neatly inboard.
+- **"Your turn" is gold and bold.** Every opponent gets a gold border on their
+  turn; moving the status to a corner had left your own turn — the one cue that
+  decides whether you act — as the quietest thing on the table.
+- The emote row gets 8px of floor clearance instead of 4, and the status block
+  is inset to match the screen's own padding rather than jammed against the
+  bezel.
+
 ## [0.2.4.1] - 2026-08-17
 
 ### Changed

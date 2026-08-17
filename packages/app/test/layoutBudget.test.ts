@@ -1,5 +1,5 @@
 import { assertAtMost, assertAtLeast, assertThat } from './support';
-import { pondColumns } from '../src/components/Board';
+import { handTileWidth, pondColumns } from '../src/components/Board';
 import {
   COMPACT_ROW, EDGE_ON_TILE, PHONE_LANDSCAPE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
 } from '../src/theme/tokens';
@@ -70,32 +70,73 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('a busy action stack fits the height it is given', () => {
-    // The stack is bounded by the two fixed zones and grows upward from the
-    // hand. Five simultaneous actions — win, two claims, a kong and pass — is
-    // the realistic worst case, and it must not run off the top.
-    const available = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
-    const five = 5 * tokens.hitSlop + 4 * tokens.space.s;
+  it('the action stack clears the right player instead of covering their tiles', () => {
+    // Found by measuring the live table, not by looking at it: anchored into
+    // the middle band the stack clipped the corner of the right player's panel
+    // by 60x8px, covering the last of the very tile slivers that panel exists
+    // to let you count. It now stops above the emote row instead.
+    const band = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
+    const panel = 17 * EDGE_ON_TILE.height + 16 * EDGE_ON_TILE.gap
+      + Math.floor(16 / EDGE_ON_TILE.groupSize) * EDGE_ON_TILE.groupGap
+      + 16 + 2 * tokens.space.xs + 2 * 2;
+    // Side panels are centred in the band, so this is where one ends.
+    const panelBottom = TABLE_ZONES.top + (band + panel) / 2;
+
+    const stackTop = (buttons: number): number => PHONE_LANDSCAPE.height
+      - TABLE_ZONES.emoteRow
+      - (buttons * tokens.hitSlop + (buttons - 1) * tokens.space.s);
+
+    // Two — a claim and Pass — is the ordinary claim window, and it must clear.
     assertAtLeast(
-      available, tokens.hitSlop,
-      'there is not even room for one action button above the hand',
+      stackTop(2), panelBottom,
+      `a two-button stack starts at ${Math.round(stackTop(2))}px but the side ` +
+        `panel runs to ${Math.round(panelBottom)}px, so it would cover their tiles`,
     );
-    // It wraps into a second column when it cannot fit, so this documents WHEN
-    // that kicks in rather than demanding it never happens.
-    const fitsInOneColumn = five <= available;
+    // And it must never reach the emote row below it.
+    assertAtMost(
+      TABLE_ZONES.emoteRow + tokens.hitSlop, TABLE_ZONES.bottom,
+      'the action stack and the emote row would overlap again',
+    );
+    // Three or more DOES overlap. Recorded, not asserted away: in that moment
+    // the buttons matter more than the tile count, and the window is brief.
     assertThat(
-      fitsInOneColumn || available >= 3 * tokens.hitSlop + 2 * tokens.space.s,
-      `only ${available}px above the hand — fewer than three actions fit in a ` +
-        'column before wrapping, which makes the stack unreadable',
+      stackTop(3) < panelBottom,
+      'three actions now clear the side panel too — this note is out of date',
     );
   });
 
-  it('a full 17-tile hand fits across the screen without wrapping', () => {
-    const width = 17 * (TILE_SIZES.hand + 2);
-    assertAtMost(
-      width, PHONE_LANDSCAPE.width,
-      `17 hand tiles span ${width}px on a ${PHONE_LANDSCAPE.width}px screen — ` +
-        `the hand would wrap to a second row and eat the action bar`,
+  it('a full 17-tile hand fits beside the action stack, at every width', () => {
+    // Not just "fits the screen": the hand has to fit the screen MINUS the
+    // gutter the action stack occupies. At 711px, 17 tiles at full size take
+    // 91% of the width, and the Discard button sat on top of the last few
+    // tiles of the hand you were choosing between.
+    for (const screen of [PHONE_LANDSCAPE.width, 711, 800, 880, 1100]) {
+      const available = screen - 2 * tokens.space.s - TABLE_ZONES.actionGutter;
+      const span = 17 * (handTileWidth(available, 17) + 2);
+      assertAtMost(
+        span, available,
+        `at ${screen}px wide the hand spans ${span}px of the ${available}px ` +
+          'left beside the action stack, so it would run under the buttons',
+      );
+    }
+  });
+
+  it('the hand only shrinks when it has to, and stays tappable', () => {
+    const roomy = PHONE_LANDSCAPE.width * 2;
+    assertThat(
+      handTileWidth(roomy, 17) === TILE_SIZES.hand,
+      'a wide screen is shrinking the hand for no reason',
+    );
+    // The target device must not need to shrink at all.
+    const onTarget = 880 - 2 * tokens.space.s - TABLE_ZONES.actionGutter;
+    assertThat(
+      handTileWidth(onTarget, 17) === TILE_SIZES.hand,
+      `the 880px target now shrinks hand tiles to ${handTileWidth(onTarget, 17)}px — ` +
+        'the gutter has grown too wide for the screen it was sized for',
+    );
+    assertAtLeast(
+      handTileWidth(711 - 2 * tokens.space.s - TABLE_ZONES.actionGutter, 17), 32,
+      'tiles shrink below the 32px touch target on a 711px window',
     );
   });
 

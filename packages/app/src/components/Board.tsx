@@ -2,20 +2,41 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
-import { COMPACT_ROW, EDGE_ON_TILE, TABLE_ZONES, TILE_SIZES, tokens } from '../theme/tokens';
+import {
+  COMPACT_ROW, EDGE_ON_TILE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+} from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
 
+/**
+ * Widest a hand tile can be and still fit `count` of them across `available`.
+ *
+ * Never wider than `TILE_SIZES.hand`; on a roomy screen this changes nothing.
+ * It exists for narrow ones, where 17 tiles at full size run under the action
+ * stack — a Discard button sitting on top of the tiles you are choosing
+ * between is worse than slightly smaller tiles.
+ */
+export function handTileWidth(available: number, count: number): number {
+  if (count <= 0) return TILE_SIZES.hand;
+  const perTile = Math.floor(available / count) - 2; // 2 = the per-tile margin
+  return Math.max(20, Math.min(TILE_SIZES.hand, perTile));
+}
+
 /** My concealed hand. Tap to select, tap the selected tile again to discard. */
 export function HandRow({
-  tiles, selectedTile, onSelect, onDiscard, disabled,
+  tiles, selectedTile, onSelect, onDiscard, disabled, available,
 }: {
   tiles: TileKind[];
   selectedTile: TileKind | null;
   onSelect: (tile: TileKind) => void;
   onDiscard: (tile: TileKind) => void;
   disabled: boolean;
+  /** Width the hand may occupy, already excluding the action gutter. */
+  available?: number;
 }): React.ReactElement {
+  const width = available === undefined
+    ? TILE_SIZES.hand
+    : handTileWidth(available, tiles.length);
   return (
     <View style={styles.handRow}>
       {tiles.map((tile, i) => (
@@ -23,6 +44,7 @@ export function HandRow({
           <Tile
             tile={tile}
             size="hand"
+            width={width}
             selected={selectedTile === tile}
             disabled={disabled}
             onPress={() => (selectedTile === tile ? onDiscard(tile) : onSelect(tile))}
@@ -106,6 +128,31 @@ export function pondColumns(screenWidth: number): number {
 const MINI_PITCH = TILE_SIZES.mini + 1;
 
 /**
+ * A side seat's exposed tiles, flattened into a single list for the grid.
+ *
+ * Side seats cannot use `MeldGroup`: a meld is a non-wrapping row, and a
+ * non-wrapping row inside a `maxWidth` box does not shrink in React Native, it
+ * overflows — which is how the right seat's melds ended up 31px off the screen
+ * and the left seat's 80px out across the felt.
+ *
+ * Flattening has to carry the concealed-kong rule with it. Two of a concealed
+ * kong's four tiles stay face down, so declaring an 暗槓 still does not tell
+ * the table which tile it was. Pure, so that rule is testable without a
+ * renderer — asserting it through the rendered SVG silently proved nothing.
+ */
+export function exposedTiles(
+  opponent: Pick<OpponentView, 'melds' | 'flowers'>,
+): { tile: TileKind; faceUp: boolean }[] {
+  return [
+    ...opponent.melds.flatMap((meld) => meld.tiles.map((tile, i) => ({
+      tile,
+      faceUp: !(meld.concealed && meld.type === 'kong' && (i === 0 || i === 3)),
+    }))),
+    ...opponent.flowers.map((tile) => ({ tile, faceUp: true })),
+  ];
+}
+
+/**
  * An opponent's concealed tiles.
  *
  * Across the table you see tile BACKS; from the left or right you see the same
@@ -176,11 +223,21 @@ export function OpponentPanel({
   const sideways = isVerticalEdge(edge);
   const hasExposed = opponent.melds.length > 0 || opponent.flowers.length > 0;
 
+  const flattened = exposedTiles(opponent);
+
   const exposed = hasExposed ? (
-    <View style={sideways ? styles.exposedBeside : styles.exposedInline}>
-      <MeldGroup melds={opponent.melds} size="mini" />
-      {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
-    </View>
+    sideways ? (
+      <View style={styles.exposedBeside}>
+        {flattened.map(({ tile, faceUp }, i) => (
+          <Tile key={`${tile}-${i}`} tile={tile} size="micro" faceUp={faceUp} />
+        ))}
+      </View>
+    ) : (
+      <View style={styles.exposedInline}>
+        <MeldGroup melds={opponent.melds} size="mini" />
+        {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
+      </View>
+    )
   ) : null;
 
   return (
@@ -195,7 +252,11 @@ export function OpponentPanel({
       </View>
 
       {sideways ? (
-        <View style={styles.sideBody}>
+        // Mirrored: exposed tiles always lie on the table side of the stack,
+        // never the screen side. A player lays their melds in front of them,
+        // toward the middle; on the right seat, un-mirrored, they were shoved
+        // out against the bezel while the left seat's sat neatly inboard.
+        <View style={[styles.sideBody, edge === 'right' && styles.sideBodyMirrored]}>
           <ConcealedTiles count={opponent.handCount} edge={edge} />
           {exposed}
         </View>
@@ -219,14 +280,19 @@ export function TableStatus({ view, seatNames }: {
   seatNames: Record<number, string>;
 }): React.ReactElement {
   const turnName = seatNames[view.turn] ?? `Seat ${view.turn + 1}`;
+  const mine = view.turn === view.seat;
   return (
     <View style={styles.status}>
       <View style={styles.statusHead}>
         <Text style={styles.statusWind}>{view.roundWind}</Text>
         <Text style={styles.statusWall}>{strings.wallRemaining(view.wallCount)}</Text>
       </View>
-      <Text style={styles.statusTurn} numberOfLines={1}>
-        {view.turn === view.seat ? strings.yourTurn : turnName}
+      {/* Every opponent gets a gold border on their turn; you get this line, so
+          on your own turn it has to carry the same weight. Muted grey in a
+          corner made the one cue that decides whether you act the quietest
+          thing on the table. */}
+      <Text style={[styles.statusTurn, mine && styles.statusTurnMine]} numberOfLines={1}>
+        {mine ? strings.yourTurn : turnName}
       </Text>
     </View>
   );
@@ -303,14 +369,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', flexWrap: 'nowrap', gap: 1, alignItems: 'center',
     maxWidth: 24 * MINI_PITCH,
   },
-  // Side seats: a narrow column beside the sliver stack, wrapping every two
-  // tiles so it grows sideways into the column's spare width instead of
-  // downwards into the ponds.
+  // Side seats: three micro tiles wide, an EXPLICIT width rather than a
+  // maxWidth — the difference between wrapping and overflowing. Height is
+  // capped too, so a freak hand cannot push the grid down through the ponds.
   exposedBeside: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 1,
-    maxWidth: 2 * MINI_PITCH, alignContent: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 1,
+    width: 3 * (TILE_SIZES.micro + 1),
+    maxHeight: 7 * (tileHeight(TILE_SIZES.micro) + 1),
+    alignContent: 'flex-start',
+    overflow: 'hidden',
   },
   sideBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
+  sideBodyMirrored: { flexDirection: 'row-reverse' },
   // Tiles seen edge-on from a side seat: thin slivers, not full backs.
   edgeOnStack: { marginTop: 2, gap: EDGE_ON_TILE.gap },
   edgeOnTile: {
@@ -336,6 +408,7 @@ const styles = StyleSheet.create({
   statusWind: { color: tokens.color.accentGold, fontSize: 20, fontWeight: '700' },
   statusWall: { color: tokens.color.textOnFelt, fontSize: 12 },
   statusTurn: { color: tokens.color.textMuted, fontSize: 11 },
+  statusTurnMine: { color: tokens.color.accentGold, fontSize: 13, fontWeight: '700' },
   lastDiscard: { alignItems: 'center' },
   seatCard: {
     backgroundColor: tokens.color.surfaceRaised,

@@ -88,9 +88,11 @@ export default function TableScreen(): React.ReactElement {
           Purely decorative, so it takes no touches. */}
       <View style={styles.surface} pointerEvents="none" />
 
-      {/* Round wind, wall count and whose turn — in the corner of the surface
-          rather than the middle of it, which is where the ponds want to be
-          read. */}
+      {/* Round wind, wall count and whose turn — in the top-left corner of the
+          SCREEN, not of the playing surface. It started in the middle of the
+          table, which is where the eye goes to read the ponds; the surface's
+          own corner is still inside the play area, so it went all the way out
+          to the dead space beside the seat across the table. */}
       <View style={styles.status} pointerEvents="none">
         <TableStatus view={view} seatNames={seatNames} />
       </View>
@@ -165,6 +167,7 @@ export default function TableScreen(): React.ReactElement {
         </View>
         <HandRow
           tiles={view.hand}
+          available={width - 2 * tokens.space.s - TABLE_ZONES.actionGutter}
           selectedTile={selectedTile}
           onSelect={setSelectedTile}
           onDiscard={(tile) => {
@@ -269,17 +272,24 @@ const styles = StyleSheet.create({
     // The RIM, not the surface: the darker felt all four players sit at.
     backgroundColor: tokens.color.tableFeltRim,
     paddingHorizontal: tokens.space.s,
-    paddingVertical: tokens.space.xs,
+    paddingTop: tokens.space.xs,
+    // More at the foot than the head: the emote row sits on the floor of the
+    // screen and looked like it had fallen off the bottom with 4px under it.
+    paddingBottom: tokens.space.s,
   },
   // The playing surface, inset so the seats fall outside it. Only a shade
   // lighter than the rim — enough to read as a surface with an edge, not
   // enough to look like a green box drawn on a green screen.
+  // Inset a further `space.s` beyond each zone so the seats sit fully ON the
+  // rim with a visible gap. Flush against the zones, every panel's border and
+  // my melds crossed the surface's rounded edge by 3-4px, which read as the
+  // felt being torn rather than as tiles resting on a table.
   surface: {
     position: 'absolute',
-    top: TABLE_ZONES.top,
-    bottom: TABLE_ZONES.bottom,
-    left: TABLE_ZONES.side,
-    right: TABLE_ZONES.side,
+    top: TABLE_ZONES.top + tokens.space.s + tokens.space.xs,
+    bottom: TABLE_ZONES.bottom + 2 * tokens.space.s,
+    left: TABLE_ZONES.side + tokens.space.s,
+    right: TABLE_ZONES.side + tokens.space.s,
     backgroundColor: tokens.color.tableFelt,
     borderRadius: tokens.radius.l,
     borderWidth: 1,
@@ -326,17 +336,22 @@ const styles = StyleSheet.create({
   },
   // Bounded by the two fixed zones, bottom-aligned, so the stack grows UP from
   // just above the hand and can never run off the top of the screen.
-  // Tucked into the surface's top-left corner.
+  // Top-left corner of the SCREEN, not of the playing surface. The top zone is
+  // centred on the seat across the table, so this corner is dead space; the
+  // surface's own corner is inside the play area, where it crowds the ponds it
+  // was moved out of the middle to get away from.
   status: {
     position: 'absolute',
-    top: TABLE_ZONES.top + tokens.space.s,
-    left: TABLE_ZONES.side + tokens.space.m,
+    // Inset to match the screen's own padding. At a flat 0,0 the wind glyph
+    // sat against the bezel and read as clipped rather than placed.
+    top: tokens.space.xs,
+    left: tokens.space.s,
   },
   actionStack: {
     position: 'absolute',
     right: tokens.space.s,
     top: TABLE_ZONES.top,
-    bottom: TABLE_ZONES.bottom,
+    bottom: TABLE_ZONES.emoteRow,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
   },

@@ -5,7 +5,7 @@ import { assertThat } from './support';
 import { TileFace } from '../src/tiles/TileFace';
 import { Tile } from '../src/tiles/Tile';
 import { ActionBar } from '../src/components/Controls';
-import { HandRow, OpponentPanel } from '../src/components/Board';
+import { exposedTiles, HandRow, OpponentPanel } from '../src/components/Board';
 import { actionBarModel } from '../src/state/selectors';
 import { FLOWERS, NON_FLOWER_KINDS, newHand, viewFor } from '@mahjong/engine';
 import type { Action, TileKind } from '@mahjong/engine';
@@ -334,5 +334,58 @@ describe('OpponentPanel — a side seat you have to count', () => {
     expect((await slivers(8)).breaks).toBe(1);
     expect((await slivers(4)).breaks).toBe(0);
     expect((await slivers(1)).breaks).toBe(0);
+  });
+});
+
+describe('OpponentPanel — a side seat must stay inside its rim', () => {
+  const state = newHand({ seed: 77, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+  const base = viewFor(state, 0).opponents[0]!;
+
+  /** Four melds and four flowers: a heavily exposed hand. */
+  const loaded = {
+    ...base,
+    handCount: 4,
+    melds: [
+      { type: 'pung', tiles: ['1w', '1w', '1w'], concealed: false, from: 1 },
+      { type: 'chow', tiles: ['2t', '3t', '4t'], concealed: false, from: 1 },
+      { type: 'pung', tiles: ['9b', '9b', '9b'], concealed: false, from: 2 },
+      { type: 'kong', tiles: ['5w', '5w', '5w', '5w'], concealed: true, from: null },
+    ],
+    flowers: ['f1', 'f2', 'f3', 'f4'],
+  } as unknown as typeof base;
+
+  it('keeps a concealed kong concealed, even flattened into the grid', () => {
+    const flat = exposedTiles(loaded);
+    // 13 meld tiles + 4 flowers, nothing dropped on the way into the grid.
+    expect(flat).toHaveLength(3 + 3 + 3 + 4 + 4);
+
+    // The kong is the last meld: exactly two of its four stay face down.
+    const kong = flat.filter((t) => t.tile === '5w');
+    expect(kong).toHaveLength(4);
+    assertThat(
+      kong.filter((t) => !t.faceUp).length === 2,
+      'a declared concealed kong is showing ' +
+        `${kong.filter((t) => t.faceUp).length} of its 4 tiles face up — ` +
+        'an 暗槓 must not tell the table which tile it was',
+    );
+  });
+
+  it('draws every exposed tile for both side seats', async () => {
+    for (const edge of ['left', 'right'] as const) {
+      await mounted(
+        <OpponentPanel
+          opponent={loaded} edge={edge} isTurn={false} connected name="Bot"
+        />,
+        (screen) => {
+          // 13 exposed tiles: 3 + 3 + 3 + 4 meld tiles, of which 2 are backs,
+          // plus 4 flowers. None may be dropped on the way into the grid.
+          const tiles = screen.queryAllByTestId('concealed-sliver');
+          assertThat(
+            tiles.length === 4,
+            `${edge} seat drew ${tiles.length} slivers for a 4-tile hand`,
+          );
+        },
+      );
+    }
   });
 });

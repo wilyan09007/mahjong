@@ -30,6 +30,9 @@ export interface TileProps {
    * behind the row above, which clipped it in half.
    */
   lift?: boolean;
+  /** Explicit width, overriding `size`. Used by the hand, which shrinks its
+   *  tiles to whatever the screen leaves beside the action stack. */
+  width?: number;
   disabled?: boolean;
   onPress?: (tile: TileKind) => void;
   testID?: string;
@@ -41,11 +44,12 @@ export function Tile({
   faceUp = true,
   selected = false,
   lift = true,
+  width: widthOverride,
   disabled = false,
   onPress,
   testID,
 }: TileProps): React.ReactElement {
-  const width = TILE_SIZES[size];
+  const width = widthOverride ?? TILE_SIZES[size];
   const height = tileHeight(width);
   const edge = Math.max(3, height * 0.08);
 

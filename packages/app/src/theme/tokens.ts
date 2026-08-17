@@ -69,6 +69,13 @@ export const TILE_SIZES = {
   discard: 24,
   meld: 28,
   mini: 18,
+  /**
+   * A side seat's exposed melds and flowers, in the narrow rim beside their
+   * concealed stack. Small enough that four melds and their flowers fit the
+   * column without spilling: at `mini` they ran 31px off the right of the
+   * screen and 80px across the playing surface on the left.
+   */
+  micro: 13,
 } as const;
 
 /**
@@ -111,6 +118,23 @@ export const TABLE_ZONES = {
    * floating in the middle of the table.
    */
   side: 96,
+  /**
+   * The emote row along the bottom. The action stack stops here rather than
+   * running to the floor: anchored any lower it sat on the emotes, and
+   * anchored into the middle band instead it clipped the corner of the right
+   * player's panel and covered the last of their tile slivers.
+   *
+   * The row itself measures 37px; the extra is clearance, because at exactly
+   * its height the stack and the emotes touched by a pixel.
+   */
+  emoteRow: 44,
+  /**
+   * Width kept clear down the right for the action stack. The hand is sized to
+   * what is left rather than laid out at full size underneath it: 17 tiles at
+   * 36px already take 91% of a 711px window, so without this the Discard
+   * button sat on top of the last few tiles of your own hand.
+   */
+  actionGutter: 100,
 } as const;
 
 /**
