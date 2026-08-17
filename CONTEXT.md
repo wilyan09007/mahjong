@@ -37,10 +37,26 @@ column names the task that creates it.
 
 ## 1. Current repo state
 
-Plans 1-3 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server` and `@mahjong/app` (320 tests, `pnpm test` and `pnpm typecheck`
-green). The app has **never been run on a device or emulator here** — every
-visual checkpoint in Plan 3 is outstanding. See `TODOS.md`.
+Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (334 tests,
+`pnpm test` and `pnpm typecheck` green).
+
+The app has been **played end to end on Expo web** against a live server with
+three bots — create table, join code, bots claiming pungs, flowers, discards,
+scoring. It has **not** been run on an Android device or emulator, so touch
+targets, landscape lock, frame rate and on-phone colour are unverified. Nothing
+is deployed. See `TODOS.md`, which leads with what is blocked on you.
+
+**To run it yourself** (web, no emulator needed):
+
+```bash
+pnpm dev:server                                  # game server on :2567
+cd packages/app
+EXPO_PUBLIC_SERVER_URL=http://localhost:2567 npx expo start --web --port 8090
+```
+
+`/dev-gallery` shows all 42 faces at every size — the screen the art gets
+judged on.
 
 | File | Status | What it is |
 |---|---|---|
@@ -72,7 +88,7 @@ mahjong/
     ├── engine/  ✅ Pure rules logic. No UI, no network, no I/O. Plan 1.
     ├── server/  ✅ Authoritative Colyseus server; runs bots in-process. Plan 2.
     ├── bot/     ✅ AI player. Depends only on engine. Plan 2.
-    └── app/     ✅ Expo React Native client. Plan 3. (unverified on device)
+    └── app/     ✅ Expo React Native client. Plan 3. (played on web, not on device)
 ```
 
 Dependency direction is one-way: `app` → (network) → `server` → `engine`,
