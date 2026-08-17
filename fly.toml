@@ -1,0 +1,41 @@
+# Fly.io deployment for the game server.
+#
+# EXACTLY ONE MACHINE, ALWAYS ON. Games live in this process's memory, so a
+# second instance would hold rooms the first cannot see and players sharing a
+# code could land in different games. `auto_stop_machines = "off"` matters just
+# as much: a stopped machine is a dead table for everyone mid-hand.
+#
+# The consequence is that deploying restarts the process and ends every game in
+# progress. Deploy at quiet hours. This is an accepted v1 limitation.
+
+app = "wilyan-mahjong"
+primary_region = "lax"
+
+[build]
+  dockerfile = "packages/server/Dockerfile"
+
+[http_service]
+  internal_port = 2567
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # WebSockets are the whole product; no request-level concurrency limit should
+  # kill a long-lived connection.
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

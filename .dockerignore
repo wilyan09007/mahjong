@@ -1,0 +1,17 @@
+# Never copy installed dependencies into the image — they are installed inside
+# it for the right platform. Copying a Windows/macOS node_modules would ship
+# binaries that cannot run on Linux, and it makes the build context enormous.
+node_modules
+**/node_modules
+
+# The Expo app is not part of the server image.
+packages/app
+
+.git
+.github
+dist
+**/*.tsbuildinfo
+.expo
+docs
+*.md
+!packages/server/README.md
