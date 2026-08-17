@@ -112,6 +112,7 @@ dependencies. Vitest for tests. Every `src/*.ts` has a matching `test/*.test.ts`
   turn, phase,                      // 'awaiting-discard' | 'awaiting-claims' | 'finished'
   players: [PlayerState × 4],       // { hand (sorted), melds, flowers, discards }
   lastDiscard, pendingClaims, pendingKong,
+  drewThisTurn,                     // gates self-win: a claim is not a draw
   lastDrawWasReplacement,           // 槓上開花
   wasKongRob,                       // 搶槓
   wasLastTile,                      // 海底撈月

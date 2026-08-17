@@ -25,7 +25,10 @@ import { buildWall } from './wall.js';
 import {
   addedKongOptions, chowOptions, concealedKongOptions, type Meld,
 } from './melds.js';
-import { computeClaimOptions, eligibleSeats, resolveClaims, type PendingClaims } from './claims.js';
+import {
+  computeClaimOptions, eligibleSeats, resolveClaims,
+  type ClaimOption, type PendingClaims,
+} from './claims.js';
 import { isWinningHand } from './win.js';
 import { isFlower, sortTiles, type FlowerKind, type Seat, type TileKind, type Wind } from './tiles.js';
 
@@ -96,6 +99,17 @@ export interface GameState {
    * `win` for that tile at higher priority, so nothing legitimate is lost.
    */
   drewThisTurn: boolean;
+  /**
+   * An added kong waiting on its 搶槓 window. The 4th tile is still in the
+   * declarer's hand while the window is open — it only moves onto the meld if
+   * nobody robs. Keeping it in hand is what makes tile conservation hold at
+   * every intermediate step, including mid-window.
+   */
+  pendingKong: { seat: Seat; tile: TileKind } | null;
+  /** 搶槓 — this hand was won by robbing an added kong. */
+  wasKongRob: boolean;
+  /** 海底撈月 — the last drawable tile has been taken. */
+  wasLastTile: boolean;
   result: HandResult | null;
 }
 
@@ -146,6 +160,9 @@ export function newHand(args: {
     // The dealer's 17th tile is their opening draw, so a dealt winning hand is
     // a legitimate self-draw win (天胡).
     drewThisTurn: true,
+    pendingKong: null,
+    wasKongRob: false,
+    wasLastTile: false,
     result: null,
   };
 }
@@ -189,6 +206,8 @@ function drawFor(s: GameState, seat: Seat): boolean {
   }
   s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
   s.drewThisTurn = true;
+  // 海底撈月: nothing is drawable after this one.
+  if (wallRemaining(s) <= WALL_FLOOR) s.wasLastTile = true;
   return true;
 }
 
@@ -208,8 +227,36 @@ function drawReplacementFor(s: GameState, seat: Seat): boolean {
     s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
     s.lastDrawWasReplacement = true;
     s.drewThisTurn = true;
+    if (wallRemaining(s) <= WALL_FLOOR) s.wasLastTile = true;
     return true;
   }
+}
+
+/**
+ * Move the 4th tile out of the declarer's hand and onto its exposed pung, then
+ * take a dead-wall replacement. Called either straight away (nobody could rob)
+ * or after the 搶槓 window closes with everyone passing.
+ */
+function completePendingKong(s: GameState): void {
+  const pk = s.pendingKong;
+  if (!pk) {
+    throw new IllegalActionError('no added kong is pending');
+  }
+  s.pendingKong = null;
+  spendFromHand(s, pk.seat, [pk.tile]);
+  const meld = s.players[pk.seat].melds.find(
+    (m) => m.type === 'pung' && m.tiles[0] === pk.tile,
+  );
+  if (!meld) {
+    throw new IllegalActionError(
+      `seat ${pk.seat} has no exposed pung of ${pk.tile} to upgrade`,
+    );
+  }
+  meld.type = 'kong';
+  meld.tiles = [pk.tile, pk.tile, pk.tile, pk.tile];
+  s.turn = pk.seat;
+  s.phase = 'awaiting-discard';
+  if (!drawReplacementFor(s, pk.seat)) endExhaustive(s);
 }
 
 function endExhaustive(s: GameState): void {
@@ -255,12 +302,26 @@ function resolvePendingClaims(s: GameState): void {
   s.pendingClaims = null;
 
   if (winning === null) {
-    advanceAfterDiscard(s, pc.from);
+    if (pc.source === 'kong-rob') completePendingKong(s);
+    else advanceAfterDiscard(s, pc.from);
     return;
   }
 
   const seat = winning.seat;
   const tile = pc.tile;
+
+  if (pc.source === 'kong-rob') {
+    // 搶槓. The 4th tile never reached the meld, so it comes straight out of
+    // the declarer's hand; their meld stays the pung it was.
+    spendFromHand(s, pc.from, [tile]);
+    s.pendingKong = null;
+    s.wasKongRob = true;
+    s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
+    s.turn = seat;
+    s.phase = 'finished';
+    s.result = null; // scored in Task 10
+    return;
+  }
 
   // The claimed tile leaves the discarder's pond — it was never really theirs.
   const discards = s.players[pc.from].discards;
@@ -440,7 +501,68 @@ export function applyAction(state: GameState, action: Action): GameState {
       }
       return s;
     }
-    // 'concealed-kong' / 'added-kong': implemented in Task 9
+    case 'concealed-kong': {
+      if (s.phase !== 'awaiting-discard' || action.seat !== s.turn) {
+        reject(s, action, 'a concealed kong may only be declared on your own turn');
+      }
+      const hand = s.players[action.seat].hand;
+      if (!concealedKongOptions(hand).includes(action.tile)) {
+        reject(
+          s,
+          action,
+          `seat ${action.seat} does not hold four ${action.tile} ` +
+            `(hand: ${hand.join(' ')})`,
+        );
+      }
+      spendFromHand(s, action.seat, [action.tile, action.tile, action.tile, action.tile]);
+      s.players[action.seat].melds.push({
+        type: 'kong',
+        tiles: [action.tile, action.tile, action.tile, action.tile],
+        concealed: true,
+        claimedFrom: null,
+      });
+      // A concealed kong cannot be robbed; take the replacement and play on.
+      if (!drawReplacementFor(s, action.seat)) endExhaustive(s);
+      return s;
+    }
+    case 'added-kong': {
+      if (s.phase !== 'awaiting-discard' || action.seat !== s.turn) {
+        reject(s, action, 'an added kong may only be declared on your own turn');
+      }
+      const p = s.players[action.seat];
+      if (!addedKongOptions(p.hand, p.melds).includes(action.tile)) {
+        reject(
+          s,
+          action,
+          `seat ${action.seat} cannot add ${action.tile} to an exposed pung ` +
+            `(hand: ${p.hand.join(' ')}; melds: ${p.melds.map((m) => m.tiles.join('')).join(' ')})`,
+        );
+      }
+      s.pendingKong = { seat: action.seat, tile: action.tile };
+
+      // 搶槓: an added kong is the one meld that can be stolen mid-declaration,
+      // and only by a seat that wins outright on that tile.
+      const robbers: ClaimOption[] = [];
+      for (let i = 1; i < 4; i++) {
+        const seat = ((action.seat + i) % 4) as Seat;
+        if (isWinningHand([...s.players[seat].hand, action.tile])) {
+          robbers.push({ seat, claim: 'win' });
+        }
+      }
+      if (robbers.length > 0) {
+        s.phase = 'awaiting-claims';
+        s.pendingClaims = {
+          tile: action.tile,
+          from: action.seat,
+          source: 'kong-rob',
+          options: robbers,
+          responses: {},
+        };
+        return s;
+      }
+      completePendingKong(s);
+      return s;
+    }
     default:
       reject(s, action, `unsupported action`);
   }
