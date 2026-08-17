@@ -1,10 +1,10 @@
 import { assertAtMost, assertAtLeast } from './support';
 import {
-  EDGE_ON_TILE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+  COMPACT_ROW, EDGE_ON_TILE, PHONE_LANDSCAPE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
 } from '../src/theme/tokens';
 
 /**
- * The landscape table has to fit a phone, and height is the scarce dimension.
+ * Every screen has to fit a phone, and height is the scarce dimension.
  *
  * Written after the table was first "verified" in a 1100x900 desktop window and
  * looked fine, then rendered at a real 880x400 phone-landscape viewport with
@@ -12,11 +12,14 @@ import {
  * another. Nothing in the type system or the component tests could notice that;
  * this is arithmetic, so it can be a rule.
  *
- * Reference viewport: a modern Android phone in landscape is roughly 880x400
- * CSS pixels (e.g. Pixel 7 at 914x411, Galaxy S21 at 800x360).
+ * The menu screens then failed the same way, one at a time, each only found by
+ * looking: Home clipped its Join button, the lobby clipped Start, and Results
+ * clipped the first-place row off the top and "Leave table" off the bottom. So
+ * they get budgets here too rather than another round of discovery by eye.
  */
 
-const PHONE_LANDSCAPE = { width: 800, height: 360 };
+/** A button as `Controls.tsx` renders it. */
+const BUTTON = tokens.hitSlop + 12;
 
 describe('landscape table fits a phone', () => {
   it('the fixed zones leave usable room for the middle of the table', () => {
@@ -58,12 +61,17 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('the top zone is tall enough for a name and one row of tile backs', () => {
-    const needed = 16 + tileHeight(TILE_SIZES.mini) + 6;
+  it('the top zone fits a name row carrying exposed tiles, plus backs', () => {
+    // The name row has to hold mini tiles, because an opponent's melds and
+    // flowers ride along it. Budgeting it as text-only is how the first version
+    // passed while `overflow: hidden` was quietly eating every exposed meld.
+    const chrome = 2 * tokens.space.xs + 2 * 2; // padding + border
+    const nameRow = Math.max(16, tileHeight(TILE_SIZES.mini));
+    const needed = chrome + nameRow + 2 + tileHeight(TILE_SIZES.mini);
     assertAtMost(
       needed, TABLE_ZONES.top,
       `top opponent needs ${Math.round(needed)}px but the zone is ${TABLE_ZONES.top}px — ` +
-        `their tiles would be clipped and could not be counted`,
+        'their exposed melds would be clipped away without a trace',
     );
   });
 
@@ -82,10 +90,13 @@ describe('landscape table fits a phone', () => {
     // the side panels straight through the middle of the table.
     const middle = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
     const stack = 17 * (EDGE_ON_TILE.height + EDGE_ON_TILE.gap);
-    const nameAndMelds = 16 + 30;
+    // Exposed tiles sit BESIDE the stack, so they cost width, not height — the
+    // panel is as tall as the taller of the two, not their sum.
+    const body = Math.max(stack, 4 * (tileHeight(TILE_SIZES.mini) + 1));
+    const nameAndMelds = 16 + 2 * tokens.space.xs + 2 * 2;
     assertAtMost(
-      stack + nameAndMelds, middle,
-      `a side opponent needs ${Math.round(stack + nameAndMelds)}px but the middle ` +
+      body + nameAndMelds, middle,
+      `a side opponent needs ${Math.round(body + nameAndMelds)}px but the middle ` +
         `band is only ${middle}px — their tiles would overlap the ponds and the hand`,
     );
 
@@ -105,5 +116,73 @@ describe('landscape table fits a phone', () => {
       TILE_SIZES.hand, 32,
       'hand tiles are the primary touch target and must stay tappable',
     );
+  });
+});
+
+/**
+ * The menu screens lay out in TWO COLUMNS in landscape, and that split is the
+ * load-bearing part — not the trimmed paddings, which only buy margin. So each
+ * screen is budgeted in both directions: the taller column has to fit, and the
+ * stacked-in-one-column version has to NOT fit. Without the second assertion
+ * these pass whatever the numbers are, which is exactly how the first version
+ * of this file went green while the table was unplayable.
+ */
+describe('landscape menu screens fit a phone', () => {
+  const usable = PHONE_LANDSCAPE.height - 2 * tokens.space.s;
+
+  it("the lobby's seat cards and controls fit as columns but not stacked", () => {
+    const seats = 4 * COMPACT_ROW.seat + 3 * tokens.space.s;
+    // Room code, Invite, the rounds row, Start, its hint and Leave.
+    const controls = 30 + 13 + BUTTON * 4 + 13 + 5 * 6;
+
+    assertAtMost(
+      seats, usable,
+      `four seat cards need ${seats}px of ${usable}px — the last seat would ` +
+        'be unreachable, so a table could not be filled',
+    );
+    assertAtMost(
+      controls, usable,
+      `the lobby controls need ${controls}px of ${usable}px — "Leave table" ` +
+        'would fall off the bottom',
+    );
+    assertAtLeast(
+      seats + controls + tokens.space.m, usable,
+      'the lobby now fits stacked in one column, so the landscape split in ' +
+        'app/lobby.tsx is no longer load-bearing and this test is dead',
+    );
+  });
+
+  it('the results standings and actions fit as columns but not stacked', () => {
+    const board = 20 + tokens.space.xs + 4 * COMPACT_ROW.standing + 4 * tokens.space.xs;
+    const actions = 13 + BUTTON * 2 + 2 * tokens.space.s;
+
+    assertAtMost(
+      board, usable,
+      `the standings need ${board}px of ${usable}px — first place would be ` +
+        'clipped off the top, which is the one thing this screen has to show',
+    );
+    assertAtMost(
+      actions, usable,
+      `Play again and Leave table need ${actions}px of ${usable}px`,
+    );
+    assertAtLeast(
+      board + actions + tokens.space.m, usable,
+      'results now fits stacked in one column, so the landscape split in ' +
+        'app/results.tsx is no longer load-bearing and this test is dead',
+    );
+  });
+
+  it('a navigation header would not fit, so the stack stays headerless', () => {
+    // Proof that `headerShown: false` in app/_layout.tsx is load-bearing and
+    // not just taste. The lobby's controls are the tallest column in the app;
+    // add a 64px chrome bar and "Leave table" goes off the bottom again.
+    const header = 64;
+    const controls = 30 + 13 + BUTTON * 4 + 13 + 5 * 6;
+    assertAtLeast(
+      controls + header, usable,
+      `the lobby controls (${controls}px) now fit WITH a ${header}px header, ` +
+        'so the headerless stack is no longer load-bearing and this test is dead',
+    );
+    assertAtMost(controls, usable, 'and they must still fit without one');
   });
 });

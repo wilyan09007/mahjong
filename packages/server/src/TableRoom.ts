@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { Room, type Client } from '@colyseus/core';
+import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   IllegalActionError, applyAction, isSessionOver, legalActions, newHand, newSession,
   nextHandParams, viewFor,
@@ -8,7 +8,7 @@ import {
 import { chooseBotAction } from '@mahjong/bot';
 import { generateRoomCode } from './roomCode.js';
 import {
-  C2S, DEFAULT_ROOM_CONFIG, S2C,
+  C2S, DEFAULT_ROOM_CONFIG, JOIN_ERROR, S2C,
   type ActionMessage, type ConfigMessage, type EmoteMessage, type HandResultMessage,
   type JoinOptions, type LobbyMessage, type RoomConfig, type SeatKind, type SeatMessage,
   type SeatPublic, type SessionEndMessage,
@@ -168,7 +168,7 @@ export class TableRoom extends Room {
   override onJoin(client: Client, options: JoinOptions): void {
     const playerId = options?.playerId;
     if (!playerId) {
-      throw new Error('joining requires a playerId');
+      throw new ServerError(JOIN_ERROR.missingPlayerId, 'joining requires a playerId');
     }
 
     // Reconnection: the same player id reclaims the seat it already holds.
@@ -190,7 +190,7 @@ export class TableRoom extends Room {
 
     const free = this.seats.findIndex((s) => s.kind === 'empty');
     if (free === -1) {
-      throw new Error('this table is full');
+      throw new ServerError(JOIN_ERROR.tableFull, 'this table is full');
     }
     this.seats[free] = {
       kind: 'human',

@@ -13,6 +13,12 @@ void SplashScreen.preventAutoHideAsync();
  * Root layout: hold the splash until the CJK face is loaded, because every tile
  * glyph is drawn with it — showing the table with fallback glyphs first would
  * flash the wrong artwork across all 42 faces.
+ *
+ * No screen shows a navigation header. On the target device — a phone in
+ * landscape, ~360px tall — the stack header costs 64px, 18% of the screen, and
+ * it buys nothing: Home is the root, and Lobby and Results both have an
+ * explicit "Leave table". With the header on, the Results screen clipped the
+ * first-place row off the top and "Leave table" off the bottom entirely.
  */
 export default function RootLayout(): React.ReactElement | null {
   const [fontsLoaded] = useFonts({ NotoSerifTC_700Bold });
@@ -37,16 +43,10 @@ export default function RootLayout(): React.ReactElement | null {
       <StatusBar style="light" />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: tokens.color.surface },
-          headerTintColor: tokens.color.textOnFelt,
+          headerShown: false,
           contentStyle: { backgroundColor: tokens.color.tableFelt },
         }}
-      >
-        <Stack.Screen name="index" options={{ title: 'Mahjong' }} />
-        <Stack.Screen name="lobby" options={{ title: 'Table' }} />
-        <Stack.Screen name="table" options={{ headerShown: false }} />
-        <Stack.Screen name="results" options={{ title: 'Results' }} />
-      </Stack>
+      />
     </>
   );
 }

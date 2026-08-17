@@ -14,7 +14,18 @@ export const strings = {
   codePlaceholder: 'ABC234',
   codeHint: '6 characters, from your friend’s screen',
   invalidCode: 'That code should be 6 characters (letters and numbers).',
-  connectFailed: 'Could not reach the table. Check your connection and try again.',
+  /**
+   * One message per thing the player can actually DO about it. "No such table"
+   * has to cover a closed table too — a table full of four humans is
+   * indistinguishable from a wrong code at the protocol level.
+   */
+  joinFailed: {
+    'no-such-table': 'No table with that code. Check it with your friend — a table’s code stops working once everyone leaves.',
+    'table-full': 'That table is full. Ask your friend to remove a bot to make room for you.',
+    unreachable: 'Could not reach the server. Check your connection and try again.',
+  },
+  connectFailed: 'Could not reach the server. Check your connection and try again.',
+  enterCodeManually: 'Enter a code',
   retry: 'Try again',
 
   // Lobby

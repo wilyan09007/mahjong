@@ -1,8 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { boot, type ColyseusTestServer } from '@colyseus/testing';
+import { ErrorCode } from 'colyseus.js';
 import appConfig from '../src/app.config.js';
 import { record } from './util.js';
-import type { LobbyMessage, SeatPublic } from '../src/protocol.js';
+import { JOIN_ERROR, type LobbyMessage, type SeatPublic } from '../src/protocol.js';
 
 let env: ColyseusTestServer;
 
@@ -114,13 +115,63 @@ describe('lobby', () => {
     expect((await log.next<{ message: string }>('error')).message).toMatch(/non-negative/);
   });
 
-  it('holds a full table against a fifth player', async () => {
+  /**
+   * How a join is REFUSED, not just that it is.
+   *
+   * The client shows a different message for "no table with that code" than for
+   * "the network is down", because sending someone to their wifi settings when
+   * they actually mistyped a character wastes their time. That mapping is only
+   * honest if these codes are pinned against a real server.
+   */
+  it('turns away a fifth player at a table full of humans', async () => {
     const host = await env.sdk.create('table', { playerId: 'p1', name: 'Ann' });
     const code = host.roomId;
     await env.sdk.joinById(code, { playerId: 'p2', name: 'Bo' });
     await env.sdk.joinById(code, { playerId: 'p3', name: 'Cy' });
     await env.sdk.joinById(code, { playerId: 'p4', name: 'Di' });
-    await expect(env.sdk.joinById(code, { playerId: 'p5', name: 'Ed' })).rejects.toThrow();
+
+    const rejection = await env.sdk
+      .joinById(code, { playerId: 'p5', name: 'Ed' })
+      .then(() => null, (error: unknown) => error);
+
+    expect(rejection, 'a fifth player was allowed to sit down').not.toBeNull();
+    // `maxClients` locks the room at four, and matchmaking does not return
+    // locked rooms by id — so this is INDISTINGUISHABLE from an unknown code.
+    // The client's wording has to cover both, and does.
+    expect(rejection).toMatchObject({ code: ErrorCode.MATCHMAKE_INVALID_ROOM_ID });
+  });
+
+  it('turns away a friend when bots hold every seat, and says the table is full', async () => {
+    // The case a real invite actually hits. Bots are not clients, so the room
+    // never reaches `maxClients` and is never locked: matchmaking lets the join
+    // through and `onJoin` is what refuses it. Different code, real message.
+    const host = await env.sdk.create('table', { playerId: 'p1', name: 'Ann' });
+    const log = record(host);
+    host.send('fill-bot', { seat: 1 });
+    host.send('fill-bot', { seat: 2 });
+    host.send('fill-bot', { seat: 3 });
+    await log.next<LobbyMessage>(
+      'lobby', (m) => m.seats.every((s: SeatPublic) => s.kind !== 'empty'),
+    );
+
+    const rejection = await env.sdk
+      .joinById(host.roomId, { playerId: 'p2', name: 'Bo' })
+      .then(() => null, (error: unknown) => error);
+
+    expect(rejection, 'a friend sat down at a table with no free seat').not.toBeNull();
+    // `message` is inherited from Error and so invisible to toMatchObject —
+    // asserting it there passes vacuously. Check it directly.
+    expect(rejection).toMatchObject({ code: JOIN_ERROR.tableFull });
+    expect((rejection as Error).message).toContain('full');
+  });
+
+  it('rejects an unknown room code', async () => {
+    const rejection = await env.sdk
+      .joinById('ZZZZZZ', { playerId: 'p1', name: 'Ann' })
+      .then(() => null, (error: unknown) => error);
+
+    expect(rejection, 'joined a room that does not exist').not.toBeNull();
+    expect(rejection).toMatchObject({ code: ErrorCode.MATCHMAKE_INVALID_ROOM_ID });
   });
 
   it('frees a seat when someone leaves the lobby, and passes the host on', async () => {

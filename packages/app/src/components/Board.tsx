@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
-import { EDGE_ON_TILE, TILE_SIZES, tokens } from '../theme/tokens';
+import { COMPACT_ROW, EDGE_ON_TILE, TILE_SIZES, tokens } from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
 
@@ -133,6 +133,14 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
  * collided with the table; it also left every opponent's name upside-down or
  * sideways. Instead the backs are arranged to suit the edge and the name stays
  * upright, which is what you actually need to read mid-hand.
+ *
+ * Exposed tiles — melds and flowers — sit BESIDE the concealed ones rather than
+ * under them. Stacked underneath they pushed the top seat's panel to 80px in a
+ * 56px zone, and `overflow: hidden` silently swallowed the difference: an
+ * opponent could pung in front of you and the meld would simply not be drawn.
+ * Hiding an exposed meld is the worst thing this panel can do, because a
+ * revealed pung is the strongest read you get on what someone is collecting.
+ * Alongside is also where melds are laid on a real table.
  */
 export function OpponentPanel({
   opponent, edge, isTurn, connected, name,
@@ -143,27 +151,31 @@ export function OpponentPanel({
   connected: boolean;
   name: string;
 }): React.ReactElement {
-  const wide = 9 * MINI_PITCH;
+  const sideways = isVerticalEdge(edge);
+  const hasExposed = opponent.melds.length > 0 || opponent.flowers.length > 0;
+
+  const exposed = hasExposed ? (
+    <View style={sideways ? styles.exposedBeside : styles.exposedInline}>
+      <MeldGroup melds={opponent.melds} size="mini" />
+      {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
+    </View>
+  ) : null;
 
   return (
     <View style={[styles.opponent, isTurn && styles.opponentTurn]}>
       <View style={styles.opponentHeader}>
         <Text style={styles.opponentName} numberOfLines={1}>{name}</Text>
         {!connected && <Text style={styles.covering}>{strings.botCovering}</Text>}
+        {!sideways && exposed}
       </View>
 
-      <ConcealedTiles count={opponent.handCount} edge={edge} />
-
-      {opponent.melds.length > 0 && (
-        <View style={[styles.backs, { maxWidth: wide }]}>
-          <MeldGroup melds={opponent.melds} size="mini" />
+      {sideways ? (
+        <View style={styles.sideBody}>
+          <ConcealedTiles count={opponent.handCount} edge={edge} />
+          {exposed}
         </View>
-      )}
-
-      {opponent.flowers.length > 0 && (
-        <View style={[styles.backs, { maxWidth: wide }]}>
-          {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
-        </View>
+      ) : (
+        <ConcealedTiles count={opponent.handCount} edge={edge} />
       )}
     </View>
   );
@@ -191,9 +203,9 @@ export function CenterInfo({ view, seatNames }: {
   );
 }
 
-/** A lobby seat card. */
+/** A lobby seat card. `compact` trims it to fit a landscape phone. */
 export function SeatCard({
-  seat, name, kind, connected, isHost, canEdit, onAddBot, onRemoveBot,
+  seat, name, kind, connected, isHost, canEdit, compact = false, onAddBot, onRemoveBot,
 }: {
   seat: Seat;
   name: string;
@@ -201,11 +213,12 @@ export function SeatCard({
   connected: boolean;
   isHost: boolean;
   canEdit: boolean;
+  compact?: boolean;
   onAddBot: (seat: Seat) => void;
   onRemoveBot: (seat: Seat) => void;
 }): React.ReactElement {
   return (
-    <View style={styles.seatCard}>
+    <View style={[styles.seatCard, compact && styles.seatCardCompact]}>
       <Text style={styles.seatName} numberOfLines={1}>
         {kind === 'bot' ? `🤖 ${name}` : name}
         {isHost ? ' ⭐' : ''}
@@ -244,6 +257,20 @@ const styles = StyleSheet.create({
   opponentName: { color: tokens.color.textOnFelt, fontSize: 13, fontWeight: '600' },
   covering: { color: tokens.color.accentGold, fontSize: 11 },
   backs: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 2 },
+  // Top seat: exposed tiles ride along the name row, which is otherwise mostly
+  // empty space, so they cost the zone no extra height at all.
+  exposedInline: {
+    flexDirection: 'row', flexWrap: 'nowrap', gap: 1, alignItems: 'center',
+    maxWidth: 24 * MINI_PITCH,
+  },
+  // Side seats: a narrow column beside the sliver stack, wrapping every two
+  // tiles so it grows sideways into the column's spare width instead of
+  // downwards into the ponds.
+  exposedBeside: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 1,
+    maxWidth: 2 * MINI_PITCH, alignContent: 'flex-start',
+  },
+  sideBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
   // Tiles seen edge-on from a side seat: thin slivers, not full backs.
   edgeOnStack: { marginTop: 2, gap: EDGE_ON_TILE.gap },
   edgeOnTile: {
@@ -265,6 +292,15 @@ const styles = StyleSheet.create({
     minHeight: 72,
     justifyContent: 'center',
     gap: tokens.space.xs,
+  },
+  // Four of these plus the controls have to fit a landscape phone's height.
+  seatCardCompact: {
+    padding: tokens.space.s,
+    minHeight: COMPACT_ROW.seat,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: tokens.space.s,
   },
   seatName: { color: tokens.color.textOnFelt, fontSize: 16, fontWeight: '600' },
   seatAction: { color: tokens.color.accentGold, fontSize: 14 },

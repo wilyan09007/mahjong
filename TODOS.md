@@ -8,12 +8,16 @@ Completed items move to the bottom with the version that shipped them.
 ### Run the app on a real Android device
 **Priority:** P0
 The app has been run and played **on Expo web at 880x400** (phone landscape),
-which found and fixed nine real bugs — see the v0.2.1.0 and v0.2.2.0
-changelogs. **Always test at that viewport**: the first pass used a 1100x900
-desktop window, where the table looked fine but was in fact unusable on a
-phone. What web still cannot tell you: touch accuracy with a thumb, whether
-landscape lock behaves, real frame rates, and how the palette looks on a phone
-screen rather than a monitor. Still outstanding:
+which found and fixed fifteen real bugs — see the v0.2.1.0 through v0.2.3.0
+changelogs. Every screen has now been inspected at that size, and a complete
+8-hand session played from create-table to standings. **Always test at that
+viewport**: the first pass used a 1100x900 desktop window, where the table
+looked fine but was unusable on a phone; the second fixed the table and left the
+menu screens clipping their primary buttons off the bottom.
+
+What web still cannot tell you: touch accuracy with a thumb, whether landscape
+lock behaves, real frame rates, and how the palette looks on a phone screen
+rather than a monitor. Still outstanding:
 
 - `pnpm -F @mahjong/app start`, press `a` on an emulator or device.
 - `/dev-gallery` on a phone — is 22px 九萬 legible in the hand?

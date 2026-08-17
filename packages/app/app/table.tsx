@@ -275,7 +275,9 @@ const styles = StyleSheet.create({
   flowers: { flexDirection: 'row', gap: 1 },
   controls: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   emoteBar: { position: 'absolute', right: 0, bottom: 0 },
-  emoteLayer: { position: 'absolute', top: 56, right: 12, gap: 2 },
+  // Clear of the top opponent's panel — the token, not a copy of its value,
+  // which silently went stale when the zone grew to fit exposed melds.
+  emoteLayer: { position: 'absolute', top: TABLE_ZONES.top, right: 12, gap: 2 },
   bubble: { color: tokens.color.textOnFelt, fontSize: 16 },
   overlay: {
     position: 'absolute',

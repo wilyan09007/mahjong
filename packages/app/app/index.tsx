@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { useGameStore } from '../src/state/store';
-import { createRoom, joinRoom } from '../src/net/connection';
+import { classifyJoinFailure, createRoom, joinRoom } from '../src/net/connection';
 import { setDisplayName } from '../src/net/deviceId';
 import { normaliseCode, isCompleteCode } from '../src/state/codeInput';
 import { Button, ErrorToast } from '../src/components/Controls';
@@ -20,6 +20,7 @@ export default function HomeScreen(): React.ReactElement {
   const [name, setName] = useState(identity?.name ?? '');
   const [code, setCode] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const { width, height } = useWindowDimensions();
 
   const busy = connection === 'connecting';
   const trimmedName = name.trim() || 'Player';
@@ -52,15 +53,18 @@ export default function HomeScreen(): React.ReactElement {
     try {
       await joinRoom(code, me.playerId, me.name);
       router.push('/lobby');
-    } catch {
-      setLocalError(strings.connectFailed);
+    } catch (failure) {
+      setLocalError(strings.joinFailed[classifyJoinFailure(failure)]);
     }
   }
 
-  return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>{strings.appName}</Text>
+  // Landscape is short and wide: stack the two paths side by side rather than
+  // vertically, or the Join button falls off the bottom of the screen. The
+  // ScrollView is the safety net for anything shorter still.
+  const landscape = width > height;
 
+  const createSection = (
+    <View style={styles.section}>
       <Text style={styles.label}>{strings.yourName}</Text>
       <TextInput
         style={styles.input}
@@ -71,16 +75,17 @@ export default function HomeScreen(): React.ReactElement {
         maxLength={16}
         accessibilityLabel={strings.yourName}
       />
-
       <Button
         label={strings.createTable}
         onPress={() => void onCreate()}
         disabled={busy}
         testID="create-table"
       />
+    </View>
+  );
 
-      <View style={styles.divider} />
-
+  const joinSection = (
+    <View style={styles.section}>
       <Text style={styles.label}>{strings.joinTable}</Text>
       <TextInput
         style={[styles.input, styles.codeInput]}
@@ -101,6 +106,21 @@ export default function HomeScreen(): React.ReactElement {
         disabled={busy}
         testID="join-table"
       />
+    </View>
+  );
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.title, landscape && styles.titleCompact]}>
+          {strings.appName}
+        </Text>
+        <View style={landscape ? styles.columns : styles.rows}>
+          {createSection}
+          {landscape ? <View style={styles.columnDivider} /> : <View style={styles.divider} />}
+          {joinSection}
+        </View>
+      </ScrollView>
 
       <ErrorToast
         message={localError ?? errorMessage}
@@ -114,13 +134,18 @@ export default function HomeScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
+  screen: { flex: 1, backgroundColor: tokens.color.tableFelt },
+  content: {
+    flexGrow: 1,
     padding: tokens.space.l,
     gap: tokens.space.m,
     justifyContent: 'center',
-    backgroundColor: tokens.color.tableFelt,
   },
+  // Side by side in landscape, stacked in portrait.
+  columns: { flexDirection: 'row', gap: tokens.space.l, alignItems: 'flex-start' },
+  rows: { gap: tokens.space.m },
+  section: { flex: 1, gap: tokens.space.s },
+  columnDivider: { width: 1, alignSelf: 'stretch', backgroundColor: tokens.color.tableFeltEdge },
   title: {
     color: tokens.color.accentGold,
     fontSize: 32,
@@ -128,6 +153,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: tokens.space.l,
   },
+  titleCompact: { fontSize: 24, marginBottom: tokens.space.s },
   label: { color: tokens.color.textOnFelt, fontSize: 15 },
   input: {
     backgroundColor: tokens.color.surfaceRaised,

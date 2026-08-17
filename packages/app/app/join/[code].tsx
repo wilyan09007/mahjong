@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useGameStore } from '../../src/state/store';
-import { joinRoom } from '../../src/net/connection';
+import { classifyJoinFailure, joinRoom } from '../../src/net/connection';
 import { getDeviceId, getDisplayName } from '../../src/net/deviceId';
 import { isCompleteCode, normaliseCode } from '../../src/state/codeInput';
 import { Button } from '../../src/components/Controls';
@@ -39,8 +39,8 @@ export default function JoinByCodeScreen(): React.ReactElement {
       try {
         await joinRoom(normalised, playerId, name);
         router.replace('/lobby');
-      } catch {
-        setError(strings.connectFailed);
+      } catch (failure) {
+        setError(strings.joinFailed[classifyJoinFailure(failure)]);
       }
     })();
   }, [code, setIdentity]);
@@ -50,7 +50,9 @@ export default function JoinByCodeScreen(): React.ReactElement {
       {error ? (
         <>
           <Text style={styles.error}>{error}</Text>
-          <Button label={strings.joinTable} onPress={() => router.replace('/')} />
+          {/* Labelled for where it GOES. It said "Join table" and led to the
+              home screen, which reads as a failed retry rather than a step. */}
+          <Button label={strings.enterCodeManually} onPress={() => router.replace('/')} />
         </>
       ) : (
         <Text style={styles.muted}>{strings.reconnecting}</Text>

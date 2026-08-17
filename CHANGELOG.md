@@ -4,6 +4,64 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.3.0] - 2026-08-17
+
+A second end-to-end walkthrough at 880x400, screen by screen, watching each one.
+The table itself held up — the previous pass fixed that. Everything *around* it
+did not: two screens clipped their primary button off the bottom, one hid the
+winner of the session, and the table silently swallowed the single most
+important thing you can learn about an opponent.
+
+### Fixed
+
+- **The results screen hid who won.** Stacked vertically it needs ~470px; the
+  screen is ~400. First place was clipped off the top, "Play again" was sliced in
+  half, and "Leave table" was off-screen entirely with no way to reach it. Now
+  two columns — standings beside the actions — like Home and the lobby.
+- **Opponents' exposed melds were invisible.** An opponent's melds and flowers
+  were stacked *below* their tile backs, which took the top seat's panel to 80px
+  inside a 56px zone with `overflow: hidden`. Someone could pung the tile you
+  just threw and no meld would be drawn. A revealed pung is the strongest read
+  you get on what a player is collecting, so this was the worst thing the panel
+  could do. Exposed tiles now sit beside the concealed ones — along the name row
+  across the table, alongside the sliver stack at the sides — which is also
+  where melds are laid on a real table.
+- **No screen shows a navigation header any more.** 64px of chrome is 18% of a
+  landscape phone, spent on a back arrow for screens that already have their own
+  title and their own "Leave table".
+- **A refused join blamed your wifi for everything.** Tapping an invite to a
+  table that had filled up said "Check your connection and try again". There are
+  three cases and they need opposite responses, so there are now three messages:
+  no such code, table full (ask them to remove a bot), and a genuine transport
+  failure. The server carries a dedicated `JOIN_ERROR` code for the full case
+  rather than making the client match on English prose.
+- **The deep-link failure screen's button said "Join table" and went Home.** It
+  now says "Enter a code", which is where it goes.
+- The emote layer's hardcoded `top: 56` was a stale copy of the top zone's
+  height, and went wrong the moment that zone changed. It reads the token.
+
+### Added
+
+- Layout budgets for the menu screens, not just the table — and each asserts
+  *both* directions: the taller column fits, and the stacked version does not.
+  Without the second half they pass no matter what the numbers are, which is
+  exactly how the first `layoutBudget.test.ts` went green while the table was
+  unplayable. The header test likewise proves a 64px bar would still break the
+  lobby, so `headerShown: false` is demonstrably load-bearing rather than taste.
+- `classifyJoinFailure` with tests built on the real `colyseus.js` error classes,
+  and server tests that pin each rejection code against a running server — a full
+  table of humans, a table full of bots, and an unknown code all reach the client
+  differently, and all three are now verified rather than assumed.
+
+### Verified by eye at 880x400
+
+Home, lobby, table, claim window (碰 offered on a real discard, opponent ringed
+in gold, exposed melds and flowers legible), hand-result overlay with its tai
+breakdown and zero-sum payments, session standings, both join-failure screens,
+and all 42 tile faces. The 條 fix from v0.2.1.0 was re-checked at 2.6x zoom:
+every bamboo renders as elongated capsules, unmistakable from the 筒 rings
+directly above them.
+
 ## [0.2.2.0] - 2026-08-17
 
 The landscape table now actually fits a phone.

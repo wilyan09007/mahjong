@@ -68,4 +68,10 @@ export const C2S = {
   emote: 'emote',
 } as const;
 
+/** Mirrors `JOIN_ERROR` in the server's protocol. Arrives as `ServerError.code`. */
+export const JOIN_ERROR = {
+  tableFull: 4400,
+  missingPlayerId: 4401,
+} as const;
+
 export type { Action, HandResult, PlayerView, Seat };

@@ -38,14 +38,24 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (342 tests,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (353 tests,
 `pnpm test` and `pnpm typecheck` green).
 
 The app has been **played end to end on Expo web at phone-landscape size**
-(880x400) against a live server with three bots — create table, join code,
-bots claiming pungs, flowers, discards, scoring. Test at that viewport, not a
-desktop window: the first pass was done at 1100x900 and the table looked fine
-while actually being unusable on a phone.
+(880x400) against a live server with three bots — a complete 8-hand session from
+create-table to final standings, with claims, flowers, kongs and scoring. Every
+screen has been inspected at that size: Home, lobby, table, claim window,
+hand-result overlay, standings, both join-failure screens, and the tile gallery.
+
+**Test at that viewport, not a desktop window.** The first pass was done at
+1100x900, where the table looked fine while being unusable on a phone. The
+second pass fixed the table and stopped there — and the *menu* screens turned
+out to clip their primary buttons off the bottom, one of them hiding the winner
+of the session. Anything that renders has to be looked at at 880x400.
+
+Layout budgets live in `packages/app/test/layoutBudget.test.ts` as arithmetic.
+Each asserts both that the intended layout fits and that the alternative does
+*not*, because a one-sided budget passes whatever the numbers are.
 
 It has **not** been run on an Android device or emulator, so touch accuracy,
 landscape lock, frame rate and on-phone colour are unverified. Nothing is
@@ -199,7 +209,7 @@ is written against it. Read that before touching messages.
 
 | File | Status | Key exports | What it does |
 |---|---|---|---|
-| `src/protocol.ts` | ✅ | `SeatKind`, `SeatPublic`, `RoomConfig`, `DEFAULT_ROOM_CONFIG`, `JoinOptions`, `LobbyMessage`, `HandResultMessage`, `SeatStatusMessage`, `SessionEndMessage`, `C2S`, `S2C` | Every wire name and shape in one file, so client and server cannot drift. `SeatPublic` deliberately carries no `playerId`. |
+| `src/protocol.ts` | ✅ | `SeatKind`, `SeatPublic`, `RoomConfig`, `DEFAULT_ROOM_CONFIG`, `JoinOptions`, `LobbyMessage`, `HandResultMessage`, `SeatStatusMessage`, `SessionEndMessage`, `C2S`, `S2C`, `JOIN_ERROR` | Every wire name and shape in one file, so client and server cannot drift. `SeatPublic` deliberately carries no `playerId`. `JOIN_ERROR` codes ride on `ServerError.code` so the client can tell a full table from a bad code without matching English prose. Note a table full of four *humans* cannot use them: `maxClients` locks the room and matchmaking refuses it before `onJoin` runs, so that case is indistinguishable from an unknown code. |
 | `src/roomCode.ts` | ✅ | `ROOM_CODE_ALPHABET`, `generateRoomCode`, `normaliseRoomCode`, `isValidRoomCode` | Six characters from a 32-symbol alphabet with I/O/0/1 removed — codes get read aloud and typed off photos. |
 | `src/TableRoom.ts` | ✅ | `TableRoom` | The room: code reservation, seats, host controls, bots, game flow, timers, disconnect cover, session loop. `pushViews()` is the ONLY place game data leaves the process. |
 | `src/app.config.ts` | ✅ | default `appConfig` | One server definition shared by `index.ts` and every test, so tests exercise production wiring. |
@@ -240,21 +250,21 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 
 | File | Status | Key exports | What it does |
 |---|---|---|---|
-| `src/theme/tokens.ts` | ✅ | `tokens`, `TILE_SIZES`, `tileHeight` | Every colour, dimension, radius and duration. No component may hardcode one — the v1.2 cosmetics pipeline depends on there being exactly one place a theme decides things. Names are frozen; values get tuned on-device. |
+| `src/theme/tokens.ts` | ✅ | `tokens`, `TILE_SIZES`, `TABLE_ZONES`, `EDGE_ON_TILE`, `PHONE_LANDSCAPE`, `COMPACT_ROW`, `tileHeight` | Every colour, dimension, radius and duration. No component may hardcode one — the v1.2 cosmetics pipeline depends on there being exactly one place a theme decides things. Names are frozen; values get tuned on-device. |
 | `src/strings.ts` | ✅ | `strings`, `EMOTES` | Every user-visible string, for localisation later. |
 | `src/tiles/tileData.ts` | ✅ | `FACE_DATA`, `FaceData`, `VIEWBOX`, `STICK_W`, `MIN_STICK_ASPECT`, `STICK_NODE` | All 42 faces as DATA in a 100×140 viewBox, with colours as token *names*. Data rather than 42 SVG files because a described face can be re-skinned and, crucially, **verified** — the tests assert the 5-dot tile has five dots, that no dots or sticks overlap, and that a 條 stick is at least `MIN_STICK_ASPECT` times taller than it is wide, which is the entire visual difference between 條 and 筒. Bamboo stick length is derived from each layout's tightest row gap, so respacing a layout cannot silently produce collisions. `STICK_NODE` holds the node-marking proportions **in the data layer on purpose**: it makes "a node must not swallow the stick" a checkable rule rather than a rendering opinion. |
 | `src/tiles/TileFace.tsx` | ✅ | `TileFace` | Renders one face from `FACE_DATA`, scaled to any width. |
 | `src/tiles/Tile.tsx` | ✅ | `Tile` | Tile body: ivory face, darker bottom edge for depth, gold border + lift when selected, `tileBack` when face-down. |
-| `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `OpponentPanel`, `CenterInfo`, `SeatCard` | The board pieces. A concealed kong shows two backs and two faces, as it is laid on a real table. |
+| `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `OpponentPanel`, `CenterInfo`, `SeatCard` | The board pieces. A concealed kong shows two backs and two faces, as it is laid on a real table. An opponent's exposed melds and flowers render **beside** their concealed tiles, never below: stacked under them the top seat's panel overflowed its zone and `overflow: hidden` erased the melds outright, hiding the strongest read you get on another player. |
 | `src/components/Controls.tsx` | ✅ | `Button`, `ActionBar`, `EmotePicker`, `ErrorToast`, `ClaimCountdown` | Buttons come straight from `actionBarModel`, so one exists iff the server would accept it. |
 | `src/state/tableLayout.ts` | ✅ | `edgeFor`, `discardGrid`, `isVerticalEdge`, `rotationFor` | Pure seat→edge and pond-grid maths. I am always at the bottom of my own screen. |
 | `src/state/selectors.ts` | ✅ | `canStart`, `actionBarModel`, `formatResult`, `rankStandings`, `medalFor`, `seatLabel` | Pure view-model derivations — every branching decision a screen makes, testable without a renderer. |
 | `src/state/store.ts` | ✅ | `useGameStore`, `applyServerMessage`, `ServerState`, `MAX_EMOTES` | zustand store **written by server messages only**. `applyServerMessage` is a pure reducer. An `error` never clobbers the `view`; a `view` always clears `pendingAction`. |
 | `src/state/codeInput.ts` | ✅ | `normaliseCode`, `isCompleteCode` | Strips punctuation and uppercases what people type off a photo. |
-| `src/net/messages.ts` | ✅ | wire types, `S2C`, `C2S` | The client's copy of the protocol. Duplicated from the server on purpose — the app talks over a socket and must not bundle server code. |
-| `src/net/connection.ts` | ✅ | `createRoom`, `joinRoom`, `send`, `playAction`, `leaveRoom`, `SERVER_URL` | Thin colyseus.js wrapper; funnels every message into the store. Rejoin-by-`playerId` with backoff, since the server restores seats by id. |
+| `src/net/messages.ts` | ✅ | wire types, `S2C`, `C2S`, `JOIN_ERROR` | The client's copy of the protocol. Duplicated from the server on purpose — the app talks over a socket and must not bundle server code. |
+| `src/net/connection.ts` | ✅ | `createRoom`, `joinRoom`, `send`, `playAction`, `leaveRoom`, `classifyJoinFailure`, `SERVER_URL` | Thin colyseus.js wrapper; funnels every message into the store. Rejoin-by-`playerId` with backoff, since the server restores seats by id. `classifyJoinFailure` splits a refused join into no-such-table / table-full / unreachable, because only the last one should send someone to their network settings. Codes pinned against a real server in `packages/server/test/lobby.test.ts`. |
 | `src/net/deviceId.ts` | ✅ | `getDeviceId`, `getDisplayName`, `setDisplayName` | AsyncStorage-persisted device identity. No accounts in v1. |
-| `app/_layout.tsx` | ✅ | — | Holds the splash until the CJK font loads — every tile glyph uses it. |
+| `app/_layout.tsx` | ✅ | — | Holds the splash until the CJK font loads — every tile glyph uses it. Renders the stack **headerless**: 64px of chrome is 18% of a landscape phone, and every screen carries its own title and its own way out. |
 | `app/index.tsx` · `lobby.tsx` · `table.tsx` · `results.tsx` · `join/[code].tsx` | ✅ | — | The four screens plus the `mahjong://join/CODE` deep link. |
 | `app/dev-gallery.tsx` | ✅ | — | All 42 faces at every size, plus melds. **This is the screen the art gets judged on** — geometry tests prove dots do not overlap, but only an eye can say whether 22px 九萬 is legible. |
 

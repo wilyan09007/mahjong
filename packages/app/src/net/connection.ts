@@ -6,8 +6,8 @@
  * stays in a pure function that tests can drive without a network.
  */
 
-import { Client, type Room } from 'colyseus.js';
-import { C2S, S2C, type Action } from './messages.js';
+import { Client, ErrorCode, type Room } from 'colyseus.js';
+import { C2S, JOIN_ERROR, S2C, type Action } from './messages.js';
 import { useGameStore } from '../state/store.js';
 
 /**
@@ -128,4 +128,35 @@ export function currentRoomCode(): string | null {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Why a join was refused, in the terms the player needs to hear. */
+export type JoinFailure = 'no-such-table' | 'table-full' | 'unreachable';
+
+/**
+ * Classify a rejected join.
+ *
+ * Worth the trouble because the three cases need opposite responses: check the
+ * code with your friend, wait for a seat, or check your wifi. Reporting all of
+ * them as "could not reach the table" — which is what the first version did —
+ * sends someone to their network settings when they actually mistyped a
+ * character off a photo of someone's screen.
+ *
+ * Codes verified against a real server in `packages/server/test/lobby.test.ts`.
+ * Note that a table full of four HUMANS is genuinely indistinguishable from an
+ * unknown code: `maxClients` locks the room and matchmaking refuses locked
+ * rooms by id before the room's own code runs. So `no-such-table` has to be
+ * worded to cover "that table is closed" as well as "no such code".
+ */
+export function classifyJoinFailure(error: unknown): JoinFailure {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  if (code === JOIN_ERROR.tableFull) return 'table-full';
+  if (
+    code === ErrorCode.MATCHMAKE_INVALID_ROOM_ID
+    || code === ErrorCode.MATCHMAKE_EXPIRED
+    || code === ErrorCode.MATCHMAKE_NO_HANDLER
+  ) {
+    return 'no-such-table';
+  }
+  return 'unreachable';
 }

@@ -62,10 +62,35 @@ export const TILE_SIZES = {
   mini: 18,
 } as const;
 
+/**
+ * The reference screen: a modern Android phone held in landscape, in CSS pixels.
+ *
+ * Every screen must fit this without a button falling off the bottom. It is
+ * deliberately the SMALL end of the real range (Galaxy S21 is 800x360, Pixel 7
+ * is 914x411) so that fitting here means fitting on the fleet.
+ *
+ * Note what this budget does NOT include: a navigation header. The stack
+ * renders headerless, because a 64px chrome bar is 18% of this screen and every
+ * screen already carries its own title and its own way out.
+ */
+export const PHONE_LANDSCAPE = { width: 800, height: 360 } as const;
+
+/**
+ * Row heights for the lobby's seat list and the results standings in landscape,
+ * where four rows plus controls share ~360px. Left to size themselves the rows
+ * come out ~72px, which pushed Start off the lobby and the winner off the
+ * results screen.
+ */
+export const COMPACT_ROW = { seat: 52, standing: 44 } as const;
+
 /** Vertical budget for the landscape table, in CSS pixels. */
 export const TABLE_ZONES = {
-  /** The opponent across from you. */
-  top: 56,
+  /**
+   * The opponent across from you: a name row that also carries their exposed
+   * melds and flowers, then one row of tile backs. 56 fitted the name and backs
+   * but clipped the exposed tiles, and `overflow: hidden` hid that completely.
+   */
+  top: 64,
   /** Your melds, flowers, hand and the action bar. */
   bottom: 152,
 } as const;
