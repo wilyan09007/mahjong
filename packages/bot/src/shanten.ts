@@ -117,10 +117,16 @@ export function shanten16(concealed: TileKind[], meldCount: number): number {
   // completions and is exact. Every bot decision keys off "am I waiting?", so
   // the exact answer is worth 34 win-checks, and it means a future change to
   // the heuristic cannot quietly move this boundary.
-  if (concealed.length % 3 === 1) {
-    const waiting = winningTiles(concealed).length > 0;
-    if (waiting) return 0;
-    return Math.max(1, raw);
+  //
+  // Only consulted when the search itself says 0. `raw` is a LOWER bound on the
+  // true shanten — the search maximises progress, and ignoring tile
+  // availability can only ever overcount it — so `raw >= 1` already proves the
+  // hand is not waiting and the exact check would be wasted. The bot evaluates
+  // a dozen candidate discards per decision, so skipping 34 win-checks on every
+  // hand that is obviously not tenpai is the difference between a snappy bot
+  // and a slow one.
+  if (concealed.length % 3 === 1 && raw === 0) {
+    return winningTiles(concealed).length > 0 ? 0 : 1;
   }
   return raw;
 }
