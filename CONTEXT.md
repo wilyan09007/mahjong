@@ -209,10 +209,12 @@ Measured at 181 wins / 19 draws per 200 bot-vs-bot hands (random play: 0/200).
 
 ## 6. `packages/app` — Expo React Native client (Plan 3) ✅ code, ⚠️ unverified on device
 
-**Built and unit-tested (71 tests), but never run on an emulator or phone in
-this environment.** Every visual and device-level checkpoint Plan 3 specifies is
-outstanding — see `TODOS.md`. Treat the layout and art coordinates as a first
-draft that has been proved *correct*, not proved *good-looking*.
+**Built, unit-tested (85 tests), and PLAYED end to end on Expo web** against a
+live server with three bots — which found and fixed five visual bugs no unit
+test caught (see the v0.2.1.0 changelog). Still never run on a real Android
+device or emulator: touch targets, landscape lock, frame rate and on-phone
+colour are all unverified. See `TODOS.md` for how to re-run it on web, which is
+the fastest feedback loop and needs no emulator.
 
 Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyseus.js.
 

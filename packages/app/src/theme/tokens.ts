@@ -14,7 +14,15 @@ export const tokens = {
     tableFeltEdge: '#0E3D2C',
     tileFace: '#F6F1E7',
     tileFaceEdge: '#D9CFBB',
-    tileBack: '#2E6B4F',
+    /**
+     * Face-down tiles sit ON the felt, so this has to be legible against it.
+     * The original #2E6B4F scored 1.23:1 against `tableFelt` — an opponent's 16
+     * concealed tiles rendered as one green smear you could not count. This
+     * scores 2.97:1 against the felt while staying 2.31:1 from `tileFace`, so
+     * it is unmistakably a back and unmistakably not a face. Enforced by
+     * `test/contrast.test.ts`.
+     */
+    tileBack: '#5FB08A',
     inkPrimary: '#1C1B18',
     suitRed: '#B3372F',
     suitGreen: '#2E6B3D',

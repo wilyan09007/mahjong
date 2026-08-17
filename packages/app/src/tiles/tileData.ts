@@ -103,12 +103,18 @@ function dotsFace(rank: number): FaceData {
  * Rank 1 is traditionally a bird rather than a stick; v1 renders it as a single
  * tall ornamental stick until commissioned art lands.
  */
-export const STICK_W = 9;
+export const STICK_W = 11;
 /** A stick must be at least this many times taller than it is wide. */
-export const MIN_STICK_ASPECT = 2.5;
+export const MIN_STICK_ASPECT = 2.2;
 const STICK_MAX_H = 30;
-/** Clear space between the ends of two vertically adjacent sticks. */
-const STICK_GAP = 4;
+/**
+ * Clear space between the ends of two vertically adjacent sticks.
+ *
+ * Set from what 八條 actually looks like: with four rows and a gap of 4, the
+ * stick ends nearly touch and the count becomes hard to read at a glance. 7
+ * separates them cleanly while keeping every rank the same stick length.
+ */
+const STICK_GAP = 7;
 
 /**
  * The node markings drawn across each stick, as a fraction of the stick.
@@ -124,11 +130,11 @@ export const STICK_NODE = {
   /** Node width as a fraction of `STICK_W`. Must be < 1. */
   widthRatio: 0.68,
   /** Node thickness as a fraction of the stick's length. Must be small. */
-  heightRatio: 0.07,
+  heightRatio: 0.06,
   /** Node centres, as a fraction of the stick's length from its middle. */
   offsets: [-0.34, 0.34] as const,
   /** Drawn in the tile-face colour at this opacity — a hint, not a cut. */
-  opacity: 0.5,
+  opacity: 0.42,
 } as const;
 
 const BAMBOO_LAYOUTS: Record<number, Point[]> = {
@@ -145,11 +151,12 @@ const BAMBOO_LAYOUTS: Record<number, Point[]> = {
     [COL.c, 30], [COL.l, 70], [COL.c, 70], [COL.r, 70],
     [COL.l, 110], [COL.c, 110], [COL.r, 110],
   ],
-  // Four rows have to share 140 units, so they sit closer together than the
-  // three-row faces; `stickHeightFor` shortens the sticks to match.
+  // Four rows share 140 units. Pushed to the very edges of the safe area so
+  // the sticks stay the same length as every other face — otherwise 8條 alone
+  // renders stubby and looks like a different suit.
   8: [
-    [COL.l, 25], [COL.r, 25], [COL.l, 58], [COL.r, 58],
-    [COL.l, 91], [COL.r, 91], [COL.l, 124], [COL.r, 124],
+    [COL.l, 20], [COL.r, 20], [COL.l, 54], [COL.r, 54],
+    [COL.l, 88], [COL.r, 88], [COL.l, 122], [COL.r, 122],
   ],
   9: [
     [COL.l, ROW.t], [COL.c, ROW.t], [COL.r, ROW.t],

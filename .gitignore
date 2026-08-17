@@ -4,3 +4,6 @@ dist/
 *.tsbuildinfo
 # Screenshots and page snapshots from browser-driven QA of the web target.
 .playwright-mcp/
+
+# Playwright MCP scratch output
+.playwright-mcp/

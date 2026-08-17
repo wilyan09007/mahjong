@@ -5,22 +5,32 @@ Completed items move to the bottom with the version that shipped them.
 
 ## Blocked on you (nothing here can be done from a shell)
 
-### Run the app on a device — every visual checkpoint in Plan 3
+### Run the app on a real Android device
 **Priority:** P0
-`@mahjong/app` is fully written and unit-tested (71 tests) but **has never been
-launched**. No emulator or device exists in the environment it was built in, so
-the layout and art are proved *correct*, not proved *good*. Outstanding:
+The app has now been run and played **on Expo web** (Chrome), which found and
+fixed five real bugs — see the v0.2.1.0 changelog. What web cannot tell you:
+touch targets on a real phone, whether landscape lock behaves, actual frame
+rates, and how the felt/tile palette looks on a phone screen rather than a
+monitor. Still outstanding:
 
-- `pnpm -F @mahjong/app start`, press `a` — does it boot at all?
-- `/dev-gallery` — are all 42 faces legible at 44px and at 22px? The geometry
-  tests guarantee dots do not overlap and glyphs are non-empty; only an eye can
-  judge whether 九萬 reads at mini size. Expect to tune `tileData.ts`
-  coordinates and `tokens.ts` values — that is what they are for.
-- A full hand, 1 human + 3 bots, in landscape: do claims, kongs, the timer, the
-  results overlay and the emotes all read correctly?
-- Two devices over LAN (`EXPO_PUBLIC_SERVER_URL` = your PC's LAN IP) — the v1
-  experience test.
-- Deep link: `npx uri-scheme open "mahjong://join/ABCDEF" --android`.
+- `pnpm -F @mahjong/app start`, press `a` on an emulator or device.
+- `/dev-gallery` on a phone — is 22px 九萬 legible in the hand?
+- A full hand in landscape: claims, kongs, timers, results overlay, emotes.
+- Two devices over LAN (`EXPO_PUBLIC_SERVER_URL` = your PC LAN IP).
+- Deep link: `npx uri-scheme open mahjong://join/ABCDEF --android`.
+
+**To run it on web again** (fastest feedback loop, no emulator needed):
+```bash
+pnpm dev:server                                   # game server on :2567
+cd packages/app
+EXPO_PUBLIC_SERVER_URL=http://localhost:2567 npx expo start --web --port 8090
+```
+
+### Discard ponds are not placed by seat
+**Priority:** P2
+All four ponds sit in a row in the middle of the table rather than adjacent to
+each player edge, so you cannot tell at a glance who threw what. Plan 3 Task 7
+asks for per-edge placement. The ponds themselves render correctly.
 
 ### Ship it — Plan 4
 **Priority:** P0

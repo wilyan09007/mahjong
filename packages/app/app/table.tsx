@@ -38,10 +38,14 @@ export default function TableScreen(): React.ReactElement {
   const [selectedTile, setSelectedTile] = useState<TileKind | null>(null);
 
   useEffect(() => {
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-    return () => {
-      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    // Orientation lock does not exist on web and is unavailable on some
+    // devices. The table is perfectly playable either way, so a failure here is
+    // swallowed rather than surfaced as an unhandled rejection.
+    const lock = (orientation: ScreenOrientation.OrientationLock): void => {
+      void ScreenOrientation.lockAsync(orientation).catch(() => undefined);
     };
+    lock(ScreenOrientation.OrientationLock.LANDSCAPE);
+    return () => lock(ScreenOrientation.OrientationLock.PORTRAIT_UP);
   }, []);
 
   // A new view means a new position: whatever was selected is stale.
@@ -109,12 +113,15 @@ export default function TableScreen(): React.ReactElement {
 
         <View style={styles.centerColumn}>
           <CenterInfo view={view} seatNames={seatNames} />
-          <ScrollView style={styles.pondScroll} contentContainerStyle={styles.ponds}>
+          {/* Four ponds side by side rather than a scrolling stack — the whole
+              point of the pond is being able to glance at what has been
+              thrown, which a scroll view defeats. */}
+          <View style={styles.ponds}>
             <DiscardPond tiles={view.discards} highlightLast />
             {view.opponents.map((o) => (
               <DiscardPond key={o.seat} tiles={o.discards} />
             ))}
-          </ScrollView>
+          </View>
         </View>
 
         <View style={styles.sideColumn}>
@@ -155,8 +162,13 @@ export default function TableScreen(): React.ReactElement {
           }}
           disabled={pendingAction}
         />
+        {/* Actions sit centred directly under the hand — they belong next to
+            the tiles they act on, not stranded in a corner. Emotes are
+            incidental, so they get the corner instead. */}
         <View style={styles.controls}>
           <ActionBar model={model} onAction={dispatch} disabled={pendingAction} />
+        </View>
+        <View style={styles.emoteBar}>
           <EmotePicker
             onSend={(emote) => send(C2S.emote, { emote })}
             disabled={pendingAction}
@@ -228,17 +240,22 @@ const styles = StyleSheet.create({
   middleRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   sideColumn: { width: 150, justifyContent: 'center' },
   centerColumn: { flex: 1, alignItems: 'center', gap: tokens.space.xs },
-  pondScroll: { maxHeight: 140 },
-  ponds: { alignItems: 'center', gap: tokens.space.xs },
-  bottom: { gap: tokens.space.xs },
-  myMelds: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s },
-  flowers: { flexDirection: 'row', gap: 1 },
-  controls: {
+  ponds: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
     gap: tokens.space.m,
+    marginTop: tokens.space.s,
   },
+  bottom: { gap: tokens.space.xs },
+  myMelds: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
+    alignItems: 'flex-end', justifyContent: 'center',
+  },
+  flowers: { flexDirection: 'row', gap: 1 },
+  controls: { alignItems: 'center', justifyContent: 'center' },
+  emoteBar: { position: 'absolute', right: 0, bottom: 0 },
   emoteLayer: { position: 'absolute', top: 60, right: 12, gap: 4 },
   bubble: { color: tokens.color.textOnFelt, fontSize: 18 },
   overlay: {

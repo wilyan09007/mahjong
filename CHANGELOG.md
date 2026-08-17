@@ -4,6 +4,43 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.1.0] - 2026-08-17
+
+The app was run and played for the first time — on Expo web, against a live
+server, with three bots. That found five real bugs that no unit test had caught,
+because every one of them was about what you *see*.
+
+### Fixed
+
+- **條 tiles rendered as dots.** The bamboo node was drawn as an opaque ellipse
+  1.4× the stick's width, which severed each 索 into two stubs and made 九條
+  read as 九筒. Sticks are now proper capsules (aspect 2.7–3.6) with hairline
+  node ticks, and stick length is derived per layout so rows cannot collide.
+- **Face-down tiles were invisible on the table.** `tileBack` scored **1.23:1**
+  against `tableFelt` — an opponent's 16 concealed tiles rendered as one green
+  smear you could not count, and counting an opponent's hand is part of
+  playing. Now 2.97:1 against the felt and 2.31:1 from the tile face.
+- **Opponent panels overflowed and their names were upside-down.** Rotating the
+  whole panel made layout reserve the unrotated box, so tile blocks spilled
+  across the table. Panels are no longer rotated; tile-backs are arranged to
+  suit their edge and names stay upright.
+- **Discard ponds collapsed to a one-tile-wide scrolling column.** A wrapping
+  row has zero intrinsic width in React Native, so `maxWidth` alone wrapped
+  after every tile. The pond now has an explicit width, and the four ponds sit
+  side by side instead of in a scroll view.
+- **Unhandled rejection from `ScreenOrientation.lockAsync`** on platforms
+  without orientation lock. Now swallowed — the table plays fine either way.
+
+### Added
+
+- `src/theme/contrast.ts` and `test/contrast.test.ts` — WCAG contrast ratios for
+  theme colours, so "you can see it" is a rule a test enforces rather than an
+  opinion. Covers tile back vs felt, back vs face, ink on tiles, text on felt,
+  and the gold accent on every surface it is used on.
+- Bamboo geometry tests: a stick must be at least `MIN_STICK_ASPECT` times
+  taller than wide, sticks must not overlap, and node markings must be narrower
+  and thinner than the stick they decorate.
+
 ## [0.2.0.0] - 2026-08-17
 
 Plans 2, 3 and 4. You can now run a real server, have friends join a private
