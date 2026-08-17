@@ -4,6 +4,41 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.2.0] - 2026-08-17
+
+The landscape table now actually fits a phone.
+
+v0.2.1.0's visual pass was done in a **1100×900 desktop browser window**, which
+is not the target. A phone in landscape is about **880×400 CSS pixels** — less
+than half the height. Re-tested at that viewport, the table did not merely look
+sparse: every zone rendered on top of every other. The opponent across the table
+covered the wind indicator, the left seat's tiles ran under the hand, and the
+discard ponds sat on top of the player's own tiles.
+
+### Fixed
+
+- **The table is laid out in fixed-height zones** instead of letting each band
+  size itself. Top 56px, bottom 152px, middle takes the rest. Nothing can push
+  into anything else.
+- **Tiles are sized for the real screen.** The hand tile drops 44→36px (49px
+  tall), and discard/meld/mini shrink with it. Width was never the constraint —
+  17 hand tiles span ~630px of the 880 available; height was.
+- **Side opponents render their concealed tiles EDGE-ON**, as thin slivers.
+  That is both what you actually see from someone's left or right and the only
+  way 17 tiles fit: as full backs they stack ~186px deep in a ~152px band,
+  which is precisely what drove the side panels through the middle of the table.
+- **The top opponent's tiles stay on one row.** Wrapping to a second row
+  overflowed the zone and got clipped, leaving their tile count — the one thing
+  that panel exists to show — unreadable.
+
+### Added
+
+- `test/layoutBudget.test.ts` — the height budget as arithmetic a test can
+  check: zones leave room for the middle, hand + melds + actions fit the bottom,
+  a 17-tile hand fits the width, ponds fit side by side, touch targets stay
+  ≥44px. The side-opponent test also asserts that full tile backs would *not*
+  fit, so it cannot quietly stop being load-bearing.
+
 ## [0.2.1.0] - 2026-08-17
 
 The app was run and played for the first time — on Expo web, against a live

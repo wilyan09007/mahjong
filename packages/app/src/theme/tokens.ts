@@ -45,13 +45,38 @@ export const tokens = {
   hitSlop: 44,
 } as const;
 
-/** Rendered widths per context; heights derive from `tokens.tile.aspect`. */
+/**
+ * Rendered widths per context; heights derive from `tokens.tile.aspect`.
+ *
+ * Sized for the real target: a phone in landscape is about 880x400 CSS pixels,
+ * and HEIGHT is the scarce dimension. At the original 44px hand tile the table
+ * needed ~470px of vertical space and every zone overlapped the next. A 36px
+ * hand tile is 49px tall, which leaves room for the opponents, the ponds and
+ * the action bar to coexist. Width was never the constraint — 17 hand tiles at
+ * this size span ~630px of the 880 available.
+ */
 export const TILE_SIZES = {
-  hand: 44,
-  discard: 30,
-  meld: 34,
-  mini: 22,
+  hand: 36,
+  discard: 24,
+  meld: 28,
+  mini: 18,
 } as const;
+
+/** Vertical budget for the landscape table, in CSS pixels. */
+export const TABLE_ZONES = {
+  /** The opponent across from you. */
+  top: 56,
+  /** Your melds, flowers, hand and the action bar. */
+  bottom: 152,
+} as const;
+
+/**
+ * A side opponent's tile seen EDGE-ON — a thin sliver, which is both what it
+ * looks like from their left or right and the only way 17 of them fit the
+ * middle band of a phone screen. Rendered as full tile backs they need ~186px
+ * of a ~152px zone, which is what pushed the side panels through the table.
+ */
+export const EDGE_ON_TILE = { width: 34, height: 4, gap: 2 } as const;
 
 export type TileSizeName = keyof typeof TILE_SIZES;
 

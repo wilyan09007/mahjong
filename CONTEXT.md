@@ -38,14 +38,18 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (334 tests,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (342 tests,
 `pnpm test` and `pnpm typecheck` green).
 
-The app has been **played end to end on Expo web** against a live server with
-three bots — create table, join code, bots claiming pungs, flowers, discards,
-scoring. It has **not** been run on an Android device or emulator, so touch
-targets, landscape lock, frame rate and on-phone colour are unverified. Nothing
-is deployed. See `TODOS.md`, which leads with what is blocked on you.
+The app has been **played end to end on Expo web at phone-landscape size**
+(880x400) against a live server with three bots — create table, join code,
+bots claiming pungs, flowers, discards, scoring. Test at that viewport, not a
+desktop window: the first pass was done at 1100x900 and the table looked fine
+while actually being unusable on a phone.
+
+It has **not** been run on an Android device or emulator, so touch accuracy,
+landscape lock, frame rate and on-phone colour are unverified. Nothing is
+deployed. See `TODOS.md`, which leads with what is blocked on you.
 
 **To run it yourself** (web, no emulator needed):
 

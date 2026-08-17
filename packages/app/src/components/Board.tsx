@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
-import { TILE_SIZES, tokens } from '../theme/tokens';
+import { EDGE_ON_TILE, TILE_SIZES, tokens } from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
 
@@ -94,6 +94,37 @@ export function DiscardPond({
 const MINI_PITCH = TILE_SIZES.mini + 1;
 
 /**
+ * An opponent's concealed tiles.
+ *
+ * Across the table you see tile BACKS; from the left or right you see the same
+ * tiles EDGE-ON, as thin slivers. Rendering the sides as full tile backs is not
+ * just less realistic — it is 16 tiles deep, roughly 200px of a 400px-tall
+ * phone screen, which is what pushed the side panels straight through the
+ * middle of the table.
+ */
+function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.ReactElement {
+  if (isVerticalEdge(edge)) {
+    return (
+      <View style={styles.edgeOnStack}>
+        {Array.from({ length: count }, (_, i) => (
+          <View key={i} style={styles.edgeOnTile} />
+        ))}
+      </View>
+    );
+  }
+  // One row, always. A full hand is 17 tiles (~325px of the 880 available), and
+  // wrapping to a second row overflowed the top zone's height budget and got
+  // clipped — leaving the count unreadable, which is the one thing this shows.
+  return (
+    <View style={[styles.backs, { maxWidth: 18 * MINI_PITCH }]}>
+      {Array.from({ length: count }, (_, i) => (
+        <Tile key={i} tile="1w" size="mini" faceUp={false} />
+      ))}
+    </View>
+  );
+}
+
+/**
  * An opponent: name, tile-backs for their concealed count, melds, flowers.
  *
  * The panel is NOT rotated. Rotating the whole panel — which the first version
@@ -112,9 +143,7 @@ export function OpponentPanel({
   connected: boolean;
   name: string;
 }): React.ReactElement {
-  // A hand is at most 17 tiles. Across the top there is room for a long run;
-  // down the sides there is not, so they stack in a narrow block instead.
-  const perRow = isVerticalEdge(edge) ? 3 : 9;
+  const wide = 9 * MINI_PITCH;
 
   return (
     <View style={[styles.opponent, isTurn && styles.opponentTurn]}>
@@ -123,20 +152,16 @@ export function OpponentPanel({
         {!connected && <Text style={styles.covering}>{strings.botCovering}</Text>}
       </View>
 
-      <View style={[styles.backs, { maxWidth: perRow * MINI_PITCH }]}>
-        {Array.from({ length: opponent.handCount }, (_, i) => (
-          <Tile key={i} tile="1w" size="mini" faceUp={false} />
-        ))}
-      </View>
+      <ConcealedTiles count={opponent.handCount} edge={edge} />
 
       {opponent.melds.length > 0 && (
-        <View style={[styles.backs, { maxWidth: perRow * MINI_PITCH }]}>
+        <View style={[styles.backs, { maxWidth: wide }]}>
           <MeldGroup melds={opponent.melds} size="mini" />
         </View>
       )}
 
       {opponent.flowers.length > 0 && (
-        <View style={[styles.backs, { maxWidth: perRow * MINI_PITCH }]}>
+        <View style={[styles.backs, { maxWidth: wide }]}>
           {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
         </View>
       )}
@@ -219,10 +244,18 @@ const styles = StyleSheet.create({
   opponentName: { color: tokens.color.textOnFelt, fontSize: 13, fontWeight: '600' },
   covering: { color: tokens.color.accentGold, fontSize: 11 },
   backs: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 2 },
-  center: { alignItems: 'center', gap: tokens.space.xs },
-  centerWind: { color: tokens.color.accentGold, fontSize: 28, fontWeight: '700' },
-  centerWall: { color: tokens.color.textOnFelt, fontSize: 13 },
-  centerTurn: { color: tokens.color.textMuted, fontSize: 12 },
+  // Tiles seen edge-on from a side seat: thin slivers, not full backs.
+  edgeOnStack: { marginTop: 2, gap: EDGE_ON_TILE.gap },
+  edgeOnTile: {
+    width: EDGE_ON_TILE.width,
+    height: EDGE_ON_TILE.height,
+    borderRadius: EDGE_ON_TILE.height / 2,
+    backgroundColor: tokens.color.tileBack,
+  },
+  center: { alignItems: 'center', gap: 1 },
+  centerWind: { color: tokens.color.accentGold, fontSize: 22, fontWeight: '700' },
+  centerWall: { color: tokens.color.textOnFelt, fontSize: 12 },
+  centerTurn: { color: tokens.color.textMuted, fontSize: 11 },
   // Clear of the turn text above it — the raised tile's shadow crowded it.
   lastDiscard: { marginTop: tokens.space.s },
   seatCard: {

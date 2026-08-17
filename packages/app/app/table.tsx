@@ -13,7 +13,7 @@ import {
 } from '../src/components/Board';
 import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Controls';
 import { Tile } from '../src/tiles/Tile';
-import { tokens } from '../src/theme/tokens';
+import { TABLE_ZONES, tokens } from '../src/theme/tokens';
 import { strings } from '../src/strings';
 
 /**
@@ -234,30 +234,49 @@ export default function TableScreen(): React.ReactElement {
   );
 }
 
+/**
+ * Zone heights are FIXED, not flexed apart.
+ *
+ * A phone in landscape gives about 400px of height, and the first version let
+ * every zone size itself — so on a real screen the opponent panels, the ponds
+ * and the hand all rendered on top of one another. Each band now gets a budget
+ * and clips to it; the middle takes whatever is left.
+ */
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: tokens.color.tableFelt, padding: tokens.space.s },
-  topRow: { flexDirection: 'row', justifyContent: 'center' },
-  middleRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  sideColumn: { width: 150, justifyContent: 'center' },
-  centerColumn: { flex: 1, alignItems: 'center', gap: tokens.space.xs },
+  screen: {
+    flex: 1,
+    backgroundColor: tokens.color.tableFelt,
+    paddingHorizontal: tokens.space.s,
+    paddingVertical: tokens.space.xs,
+  },
+  topRow: {
+    height: TABLE_ZONES.top,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  middleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 0 },
+  sideColumn: { width: 96, justifyContent: 'center', alignItems: 'center' },
+  centerColumn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
   ponds: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'flex-start',
-    gap: tokens.space.m,
-    marginTop: tokens.space.s,
+    gap: tokens.space.s,
+    marginTop: tokens.space.xs,
+    overflow: 'hidden',
   },
-  bottom: { gap: tokens.space.xs },
+  bottom: { height: TABLE_ZONES.bottom, justifyContent: 'flex-end', gap: 2 },
   myMelds: {
     flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
-    alignItems: 'flex-end', justifyContent: 'center',
+    alignItems: 'flex-end', justifyContent: 'center', maxHeight: 30, overflow: 'hidden',
   },
   flowers: { flexDirection: 'row', gap: 1 },
-  controls: { alignItems: 'center', justifyContent: 'center' },
+  controls: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   emoteBar: { position: 'absolute', right: 0, bottom: 0 },
-  emoteLayer: { position: 'absolute', top: 60, right: 12, gap: 4 },
-  bubble: { color: tokens.color.textOnFelt, fontSize: 18 },
+  emoteLayer: { position: 'absolute', top: 56, right: 12, gap: 2 },
+  bubble: { color: tokens.color.textOnFelt, fontSize: 16 },
   overlay: {
     position: 'absolute',
     top: 0,
