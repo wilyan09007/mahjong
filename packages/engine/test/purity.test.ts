@@ -15,6 +15,41 @@ import { fileURLToPath } from 'node:url';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 
+/**
+ * Split on either line ending, ALWAYS.
+ *
+ * Git checks this repo out with CRLF on Windows. Splitting on '\n' alone
+ * leaves a trailing '\r' on every line, and in a JavaScript regex `\r` is a
+ * line terminator, so `.` refuses to match it and `/^\s*\*.*$/` silently stops
+ * recognising comment lines. Every comment that *documents* a banned call then
+ * reads as a violation of it. That is how this guard reported wall.ts's own
+ * "Math.random() is banned everywhere" docstring as banned code.
+ */
+function lines(text: string): string[] {
+  return text.split(/\r?\n/);
+}
+
+/**
+ * Blank out comments so a rule may be discussed in prose without tripping
+ * itself. Handles `//` line comments and `*` continuation lines of a block.
+ */
+export function stripComments(line: string): string {
+  // Drop a trailing \r FIRST. `.` will not match a carriage return and `$`
+  // will not sit before one, so on a CRLF line every pattern below silently
+  // stops matching. Doing it here rather than only in `lines()` means the
+  // function is correct however it is called.
+  return line.replace(/\r$/, '').replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
+}
+
+/** Lines of real code in `file` that match `pattern`, as `path:line  text`. */
+function violations(file: string, label: string, pattern: RegExp): string[] {
+  const out: string[] = [];
+  lines(readFileSync(file, 'utf8')).forEach((line, i) => {
+    if (pattern.test(stripComments(line))) out.push(`${label}:${i + 1}  ${line.trim()}`);
+  });
+  return out;
+}
+
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
@@ -69,18 +104,21 @@ describe('engine purity', () => {
     expect(files.length, `no .ts files found under ${SRC}`).toBeGreaterThan(10);
   });
 
+  it('strips comments regardless of line ending', () => {
+    // Regression: with CRLF checkouts the trailing \r defeated /^\s*\*.*$/,
+    // so a comment describing a banned call was read as the call itself.
+    const comment = ' * `Math.random()` is banned everywhere in this package';
+    expect(stripComments(comment)).toBe('');
+    expect(stripComments(`${comment}\r`)).toBe('');
+    expect(stripComments('// Math.random() would be wrong here\r')).toBe('');
+    // Real code must still survive stripping, or the guard checks nothing.
+    expect(stripComments('const x = Math.random();\r')).toContain('Math.random');
+  });
+
   for (const ban of BANS) {
     it(`uses no ${ban.name}`, () => {
-      const hits: string[] = [];
-      for (const file of files) {
-        readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-          // Comments explain these rules; only real code may not break them.
-          const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
-          if (ban.pattern.test(code)) {
-            hits.push(`${file.slice(SRC.length + 1)}:${i + 1}  ${line.trim()}`);
-          }
-        });
-      }
+      const hits = files.flatMap((file) =>
+        violations(file, file.slice(SRC.length + 1), ban.pattern));
       expect(hits, `${ban.why}\n\n${hits.join('\n')}`).toEqual([]);
     });
   }
@@ -94,15 +132,9 @@ describe('engine purity', () => {
   });
 
   it('contains no test doubles — this suite mocks nothing', () => {
-    const testDir = join(SRC, '..', 'test');
     const banned = /\bvi\s*\.\s*(mock|fn|spyOn|stubGlobal|useFakeTimers)\b|\bjest\s*\.\s*mock\b/;
-    const hits: string[] = [];
-    for (const file of sourceFiles(testDir)) {
-      readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
-        if (banned.test(code)) hits.push(`${file}:${i + 1}  ${line.trim()}`);
-      });
-    }
+    const hits = sourceFiles(join(SRC, '..', 'test'))
+      .flatMap((file) => violations(file, file, banned));
     expect(
       hits,
       `every test must drive the real engine with real tiles\n\n${hits.join('\n')}`,
@@ -110,15 +142,9 @@ describe('engine purity', () => {
   });
 
   it('never skips a test', () => {
-    const testDir = join(SRC, '..', 'test');
     const banned = /\b(it|test|describe)\s*\.\s*(skip|todo|only)\b|\bxit\b|\bxdescribe\b/;
-    const hits: string[] = [];
-    for (const file of sourceFiles(testDir)) {
-      readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
-        if (banned.test(code)) hits.push(`${file}:${i + 1}  ${line.trim()}`);
-      });
-    }
+    const hits = sourceFiles(join(SRC, '..', 'test'))
+      .flatMap((file) => violations(file, file, banned));
     expect(hits, `a skipped test is a lie about coverage\n\n${hits.join('\n')}`).toEqual([]);
   });
 });

@@ -1,0 +1,21 @@
+# Normalise line endings in the repository to LF.
+#
+# Without this, what lands in a checkout depends on each developer's
+# core.autocrlf setting. That is not cosmetic: it broke the engine purity guard,
+# which reads the source tree and whose comment-stripping stopped matching once
+# every line ended with CR. Development happens on Windows and CI/EAS builds on
+# Linux, so the two must agree.
+* text=auto
+
+# Never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.aab binary
+*.apk binary
