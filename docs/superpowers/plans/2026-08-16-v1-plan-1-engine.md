@@ -27,11 +27,22 @@
 - Seats are `0|1|2|3`; seat wind at hand start = E,S,W,N counted from the dealer (dealer is always East for the hand).
 - Default stakes: base (底) = 3 points, per-tai (台) = 1 point; both are parameters, never hardcoded outside defaults.
 - Commit after every task (conventional commits: `feat:`, `test:`, `chore:`).
+- **Every task's commit includes a `CONTEXT.md` update**: flip that task's files
+  from 📋 to ✅ and correct their exports column to what you actually built (the
+  code wins where it disagrees with this plan). If the task changed `GameState`
+  fields, the `Action` union, or the phase machine, fix `CONTEXT.md` §3's
+  quick-reference blocks in the same commit. `CLAUDE.md` and `CONTEXT.md` already
+  exist — read `CONTEXT.md` before starting any task.
+- Because `CONTEXT.md` is at the repo root, each task's `git add packages/engine`
+  must be `git add packages/engine CONTEXT.md` — the staging line as written in
+  Tasks 2–12 would silently drop the map update.
 
 ## File Structure
 
 ```
 mahjong/
+├── CLAUDE.md                     # exists — agent entry point, routes to CONTEXT.md
+├── CONTEXT.md                    # exists — repo map; UPDATE IT IN EVERY TASK'S COMMIT
 ├── package.json                  # private root, scripts
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
@@ -1748,7 +1759,14 @@ describe('random full-game simulation', () => {
 
 - [ ] **Step 4: Full suite + typecheck** — `pnpm test` and `pnpm typecheck` at the repo root: all green.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Reconcile `CONTEXT.md` against the finished engine**
+
+Final pass, not a per-task touch-up: open each `packages/engine/src/*.ts` and
+verify its `CONTEXT.md` row lists the exports that are actually there. Confirm
+the `GameState` block, `Action` union, and phase list match `game.ts`. Every
+engine row should now be ✅. Add rows for any file the plan didn't foresee.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add packages/engine
