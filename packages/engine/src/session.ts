@@ -16,6 +16,16 @@ export interface SessionParams {
   dealerStreak: number;
   roundWind: Wind;
   handsPlayed: number;
+  /**
+   * Full laps of the deal completed so far.
+   *
+   * This exists because the round wind cannot count them. The wind wraps N→E,
+   * so after four laps it reads 'E' again — identical to a session that has not
+   * started. An explicit counter is the only way to express a 全莊 (4-round)
+   * session, which is the standard Taiwanese format and one of the round counts
+   * the room lobby offers.
+   */
+  roundsCompleted: number;
 }
 
 const WIND_CYCLE: Wind[] = ['E', 'S', 'W', 'N'];
@@ -30,6 +40,7 @@ export function nextHandParams(prev: SessionParams, result: HandResult): Session
       dealerStreak: prev.dealerStreak + 1,
       roundWind: prev.roundWind,
       handsPlayed: prev.handsPlayed + 1,
+      roundsCompleted: prev.roundsCompleted,
     };
   }
 
@@ -42,33 +53,29 @@ export function nextHandParams(prev: SessionParams, result: HandResult): Session
     dealerStreak: 0,
     roundWind: lapCompleted ? WIND_CYCLE[(windIndex + 1) % 4]! : prev.roundWind,
     handsPlayed: prev.handsPlayed + 1,
+    roundsCompleted: prev.roundsCompleted + (lapCompleted ? 1 : 0),
   };
 }
 
-/** Laps finished so far, read off the round wind: during the E round, zero. */
-export function roundsCompleted(params: SessionParams): number {
-  return WIND_CYCLE.indexOf(params.roundWind);
+/** A fresh session: East round, seat 0 deals, nothing played yet. */
+export function newSession(dealer: Seat = 0): SessionParams {
+  return { dealer, dealerStreak: 0, roundWind: 'E', handsPlayed: 0, roundsCompleted: 0 };
 }
 
 /**
  * Has the session run its configured number of rounds?
  *
- * `totalRounds` must be 1-3. `SessionParams` carries no lap counter — the round
- * wind IS the counter — and the wind wraps N→E, so "four rounds finished" and
- * "no rounds finished" are the same state and cannot be told apart. Rather than
- * return a confidently wrong answer for a 全莊 (4-round) session, this throws
- * and says what to change. Adding a `roundsCompleted` field to `SessionParams`
- * is the fix, and belongs with Plan 2's room configuration rather than here,
- * where it would change a shape Plan 1's contract pins down.
+ * 1-4 rounds. Four is 全莊, the standard Taiwanese full game, and it works
+ * because `roundsCompleted` counts laps explicitly rather than reading them off
+ * the round wind — which wraps N→E and so cannot tell a finished session from a
+ * fresh one.
  */
 export function isSessionOver(params: SessionParams, totalRounds: number): boolean {
-  if (!Number.isInteger(totalRounds) || totalRounds < 1 || totalRounds > 3) {
+  if (!Number.isInteger(totalRounds) || totalRounds < 1 || totalRounds > 4) {
     throw new Error(
-      `totalRounds must be an integer 1-3, got ${totalRounds}. The round wind is ` +
-        `the only lap counter in SessionParams and it wraps N→E, so a 4-round ` +
-        `session is indistinguishable from a fresh one. Add an explicit ` +
-        `roundsCompleted field to SessionParams to support it.`,
+      `totalRounds must be an integer 1-4, got ${totalRounds} — a session runs ` +
+        `at most one lap per wind (E/S/W/N)`,
     );
   }
-  return roundsCompleted(params) >= totalRounds;
+  return params.roundsCompleted >= totalRounds;
 }

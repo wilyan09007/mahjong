@@ -167,7 +167,7 @@ function playHand(
 describe('random full-game simulation', () => {
   it('plays 200 hands of uniform-random legal actions without an illegal state', () => {
     const rng = mulberry32(2026);
-    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0 };
+    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0, roundsCompleted: 0 };
     let kongs = 0;
     let finished = 0;
 
@@ -189,7 +189,7 @@ describe('random full-game simulation', () => {
 
   it('plays 200 hands of greedy play, reaching real wins and scoring them', () => {
     const rng = mulberry32(4242);
-    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0 };
+    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0, roundsCompleted: 0 };
     let wins = 0;
     let draws = 0;
     let selfDraws = 0;
@@ -246,7 +246,7 @@ describe('random full-game simulation', () => {
 
   it('runs a whole session to its configured end', () => {
     const rng = mulberry32(31337);
-    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0 };
+    let session: SessionParams = { dealer: 0, dealerStreak: 0, roundWind: 'E', handsPlayed: 0, roundsCompleted: 0 };
     let guard = 0;
     while (!isSessionOver(session, 1)) {
       expect(guard++, 'a 1-round session never ended').toBeLessThan(300);

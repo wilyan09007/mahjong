@@ -70,7 +70,7 @@ export {
 export { checkInvariants, assertInvariants, EngineInvariantError } from './invariants.js';
 
 // Session and variants.
-export { nextHandParams, roundsCompleted, isSessionOver } from './session.js';
+export { nextHandParams, newSession, isSessionOver } from './session.js';
 export type { SessionParams } from './session.js';
 export { TAIWANESE, VARIANTS, resolveVariant } from './variant.js';
 export type { Variant, VariantId } from './variant.js';
