@@ -82,7 +82,9 @@ export function formatPlayer(s: GameState, seat: Seat): string {
     seat === s.dealer ? 'DEALER' : '',
     seat === s.turn ? 'TURN' : '',
   ].filter(Boolean).join(' ');
-  const held = p.hand.length + p.melds.reduce((n, m) => n + (m.type === 'kong' ? 3 : 3), 0);
+  // A kong is four tiles but three slots — its replacement draw restores the
+  // count — so every meld is worth 3 here regardless of type.
+  const held = p.hand.length + p.melds.length * 3;
   return [
     `  seat ${seat} (${seatWind(seat, s.dealer)}) ${marks}`,
     `    hand[${p.hand.length}]  ${formatTiles(p.hand)}`,

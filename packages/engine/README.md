@@ -4,7 +4,7 @@ Taiwanese 16-tile mahjong rules, as a pure state machine. No UI, no network,
 no I/O, no clock, no `Math.random()`. Zero runtime dependencies.
 
 ```bash
-pnpm -F @mahjong/engine test        # 173 tests
+pnpm -F @mahjong/engine test        # 183 tests, no mocks
 pnpm -F @mahjong/engine typecheck
 MAHJONG_DEBUG=1 pnpm -F @mahjong/engine test   # per-hand simulation summaries
 ```

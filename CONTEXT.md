@@ -38,12 +38,15 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plan 1 is complete: the pnpm monorepo is up and `@mahjong/engine` is fully
-implemented and tested (173 tests, `pnpm test` and `pnpm typecheck` green). `packages/server`, `packages/bot`, and `packages/app`
+implemented and tested (183 tests, `pnpm test` and `pnpm typecheck` green). `packages/server`, `packages/bot`, and `packages/app`
 do not exist yet — Plans 2–4 have not been written.
 
 | File | Status | What it is |
 |---|---|---|
 | `VERSION` | ✅ | Four-digit release version (`MAJOR.MINOR.PATCH.MICRO`) read by the `/ship` workflow. |
+| `CHANGELOG.md` | ✅ | Per-version record of what changed, written for the developer consuming the engine. |
+| `TODOS.md` | ✅ | Open work grouped by component then priority (P0–P4), with a Completed section at the bottom. Holds the Plan 2–4 roadmap and the engine's known limits. |
+| `packages/engine/README.md` | ✅ | Consumer guide for the engine — three-function contract, tile codes, phase diagram, tai table, debugging entry points, and the list of `GameState` fields a server must never send a client. |
 | `docs/superpowers/specs/2026-08-16-mahjong-app-design.md` | ✅ | **Approved design spec.** Product decisions (variants, monetization, identity), 4-package architecture, per-package responsibilities, art direction, testing strategy, v1→v1.2 phasing. The "why" for everything below. |
 | `docs/superpowers/plans/2026-08-16-v1-plan-1-engine.md` | ✅ | **Plan 1 (of 4), task-by-task.** Monorepo scaffold + full Taiwanese engine. 12 TDD tasks, each with exact exports, failing tests first, then implementation, then a commit. Contains near-complete source for `tiles.ts`, `wall.ts`, `melds.ts`, `win.ts`, `deal.ts`, `payments.ts`. |
 | `CONTEXT.md` | ✅ | **This file — the read-first map.** Every file in the repo with its key exports and one-line job, the engine's state/action reference, and the cross-cutting rules (tile codes, purity constraints, defaults). Maintained per the "How to use this file" section above; `CLAUDE.md` points agents here at session start. |
@@ -133,8 +136,10 @@ chow carries `chowTiles`) · `pass`. Anything illegal throws `IllegalActionError
 ### Test files
 
 One per source module (`tiles`, `wall`, `melds`, `win`, `deal`, `turnflow`,
-`claims`, `kong`, `scoring`, `session`, `debug`), plus `test/simulation.test.ts`.
-**173 tests, no mocks anywhere** — no `vi.mock`, no stubs, no fakes; every test
+`claims`, `kong`, `scoring`, `session`, `debug`), plus `test/simulation.test.ts` and
+`test/purity.test.ts` (which enforces the no-I/O, no-clock, no-mocks,
+no-skipped-tests rules against the real source tree).
+**183 tests, no mocks anywhere** — no `vi.mock`, no stubs, no fakes; every test
 drives the real engine with real tiles.
 
 `simulation.test.ts` imports from `../src/index.js` ONLY, which is how we know
