@@ -57,6 +57,14 @@ export { scoreTaiwaneseHand } from './scoring/taiwanese.js';
 export type { TaiItem, ScoreContext } from './scoring/taiwanese.js';
 export { computePayments } from './scoring/payments.js';
 
+// Debugging. Pure renderers — nothing here prints; the caller decides where
+// verbose output goes, which is how the engine stays I/O-free.
+export {
+  formatTile, formatTiles, formatMeld, formatAction, formatResult,
+  formatPlayer, formatState, formatLegalActions, traceAction, traceHand,
+} from './debug.js';
+export { checkInvariants, assertInvariants, EngineInvariantError } from './invariants.js';
+
 // Session and variants.
 export { nextHandParams, roundsCompleted, isSessionOver } from './session.js';
 export type { SessionParams } from './session.js';
