@@ -37,9 +37,10 @@ column names the task that creates it.
 
 ## 1. Current repo state
 
-Plans 1 and 2 are complete: the monorepo, `@mahjong/engine`, `@mahjong/bot` and
-`@mahjong/server` are fully implemented and tested (249 tests, `pnpm test` and
-`pnpm typecheck` green). `packages/app` (Plan 3) is next.
+Plans 1-3 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
+`@mahjong/server` and `@mahjong/app` (320 tests, `pnpm test` and `pnpm typecheck`
+green). The app has **never been run on a device or emulator here** — every
+visual checkpoint in Plan 3 is outstanding. See `TODOS.md`.
 
 | File | Status | What it is |
 |---|---|---|
@@ -71,7 +72,7 @@ mahjong/
     ├── engine/  ✅ Pure rules logic. No UI, no network, no I/O. Plan 1.
     ├── server/  ✅ Authoritative Colyseus server; runs bots in-process. Plan 2.
     ├── bot/     ✅ AI player. Depends only on engine. Plan 2.
-    └── app/     📋 Expo React Native client. Plan 3.
+    └── app/     ✅ Expo React Native client. Plan 3. (unverified on device)
 ```
 
 Dependency direction is one-way: `app` → (network) → `server` → `engine`,
@@ -206,10 +207,42 @@ Consumes **only** a `PlayerView`, never `GameState`, so it cannot see the wall
 or anyone's hand — which is what makes it honest cover for a dropped player.
 Measured at 181 wins / 19 draws per 200 bot-vs-bot hands (random play: 0/200).
 
-## 6. `packages/app` — Expo React Native client (Plan 3, not yet planned)
+## 6. `packages/app` — Expo React Native client (Plan 3) ✅ code, ⚠️ unverified on device
 
-Rendering: React Native Skia (tile bevels, gloss, shadows, felt) + Reanimated
-(60fps deal/draw/discard/win). Screens:
+**Built and unit-tested (71 tests), but never run on an emulator or phone in
+this environment.** Every visual and device-level checkpoint Plan 3 specifies is
+outstanding — see `TODOS.md`. Treat the layout and art coordinates as a first
+draft that has been proved *correct*, not proved *good-looking*.
+
+Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyseus.js.
+
+| File | Status | Key exports | What it does |
+|---|---|---|---|
+| `src/theme/tokens.ts` | ✅ | `tokens`, `TILE_SIZES`, `tileHeight` | Every colour, dimension, radius and duration. No component may hardcode one — the v1.2 cosmetics pipeline depends on there being exactly one place a theme decides things. Names are frozen; values get tuned on-device. |
+| `src/strings.ts` | ✅ | `strings`, `EMOTES` | Every user-visible string, for localisation later. |
+| `src/tiles/tileData.ts` | ✅ | `FACE_DATA`, `FaceData`, `VIEWBOX` | All 42 faces as DATA in a 100×140 viewBox, with colours as token *names*. Data rather than 42 SVG files because a described face can be re-skinned and, crucially, **verified** — the tests assert the 5-dot tile has five dots and that no two dots overlap. |
+| `src/tiles/TileFace.tsx` | ✅ | `TileFace` | Renders one face from `FACE_DATA`, scaled to any width. |
+| `src/tiles/Tile.tsx` | ✅ | `Tile` | Tile body: ivory face, darker bottom edge for depth, gold border + lift when selected, `tileBack` when face-down. |
+| `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `OpponentPanel`, `CenterInfo`, `SeatCard` | The board pieces. A concealed kong shows two backs and two faces, as it is laid on a real table. |
+| `src/components/Controls.tsx` | ✅ | `Button`, `ActionBar`, `EmotePicker`, `ErrorToast`, `ClaimCountdown` | Buttons come straight from `actionBarModel`, so one exists iff the server would accept it. |
+| `src/state/tableLayout.ts` | ✅ | `edgeFor`, `discardGrid`, `isVerticalEdge`, `rotationFor` | Pure seat→edge and pond-grid maths. I am always at the bottom of my own screen. |
+| `src/state/selectors.ts` | ✅ | `canStart`, `actionBarModel`, `formatResult`, `rankStandings`, `medalFor`, `seatLabel` | Pure view-model derivations — every branching decision a screen makes, testable without a renderer. |
+| `src/state/store.ts` | ✅ | `useGameStore`, `applyServerMessage`, `ServerState`, `MAX_EMOTES` | zustand store **written by server messages only**. `applyServerMessage` is a pure reducer. An `error` never clobbers the `view`; a `view` always clears `pendingAction`. |
+| `src/state/codeInput.ts` | ✅ | `normaliseCode`, `isCompleteCode` | Strips punctuation and uppercases what people type off a photo. |
+| `src/net/messages.ts` | ✅ | wire types, `S2C`, `C2S` | The client's copy of the protocol. Duplicated from the server on purpose — the app talks over a socket and must not bundle server code. |
+| `src/net/connection.ts` | ✅ | `createRoom`, `joinRoom`, `send`, `playAction`, `leaveRoom`, `SERVER_URL` | Thin colyseus.js wrapper; funnels every message into the store. Rejoin-by-`playerId` with backoff, since the server restores seats by id. |
+| `src/net/deviceId.ts` | ✅ | `getDeviceId`, `getDisplayName`, `setDisplayName` | AsyncStorage-persisted device identity. No accounts in v1. |
+| `app/_layout.tsx` | ✅ | — | Holds the splash until the CJK font loads — every tile glyph uses it. |
+| `app/index.tsx` · `lobby.tsx` · `table.tsx` · `results.tsx` · `join/[code].tsx` | ✅ | — | The four screens plus the `mahjong://join/CODE` deep link. |
+| `app/dev-gallery.tsx` | ✅ | — | All 42 faces at every size, plus melds. **This is the screen the art gets judged on** — geometry tests prove dots do not overlap, but only an eye can say whether 22px 九萬 is legible. |
+
+**Testing note (hard-won):** all component tests live in ONE file and never call
+`unmount()`, and every `fireEvent` is awaited. RNTL 14's `fireEvent` is async
+(un-awaited it corrupts the renderer via overlapping `act()`), and its renderer
+root leaks across test *files* in a reused Jest worker. Both faults present as
+tests that pass alone and fail in a full run.
+
+Screens, from the spec:
 
 | Screen | Ships | Holds |
 |---|---|---|

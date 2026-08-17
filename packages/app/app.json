@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Mahjong with Friends",
+    "slug": "mahjong",
+    "version": "1.0.0",
+    "scheme": "mahjong",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#175E43",
+      "resizeMode": "contain"
+    },
+    "android": {
+      "package": "com.wilyan.mahjong",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#175E43"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wilyan.mahjong"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
