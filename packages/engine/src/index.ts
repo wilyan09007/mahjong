@@ -52,6 +52,10 @@ export type {
 // Claims.
 export { computeClaimOptions, eligibleSeats, resolveClaims } from './claims.js';
 
+// The security boundary — the only thing a server may send a client.
+export { viewFor } from './view.js';
+export type { PlayerView, OpponentView } from './view.js';
+
 // Scoring.
 export { scoreTaiwaneseHand } from './scoring/taiwanese.js';
 export type { TaiItem, ScoreContext } from './scoring/taiwanese.js';
