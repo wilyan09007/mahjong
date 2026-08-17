@@ -1,7 +1,7 @@
 import React from 'react';
-import Svg, { Circle, Ellipse, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
 import type { TileKind } from '@mahjong/engine';
-import { FACE_DATA, VIEWBOX, type FaceColor } from './tileData';
+import { FACE_DATA, STICK_NODE, STICK_W, VIEWBOX, type FaceColor } from './tileData';
 import { tokens, tileHeight } from '../theme/tokens';
 
 /**
@@ -43,19 +43,40 @@ export function TileFace({ tile, size = tokens.tile.w }: TileFaceProps): React.R
         </React.Fragment>
       ))}
 
-      {face.kind === 'bamboo' && face.sticks.map((s, i) => (
-        <React.Fragment key={i}>
-          <Rect
-            x={s.x - 5}
-            y={s.y - 13}
-            width={10}
-            height={26}
-            rx={3}
-            fill={colorOf(s.color)}
-          />
-          <Ellipse cx={s.x} cy={s.y} rx={7} ry={3.5} fill={tokens.color.tileFace} opacity={0.9} />
-        </React.Fragment>
-      ))}
+      {face.kind === 'bamboo' && face.sticks.map((s, i) => {
+        const half = face.stickHeight / 2;
+        return (
+          <React.Fragment key={i}>
+            {/* The stick itself: an elongated capsule. This is what makes 條
+                read as a LINE rather than a dot — the whole visual difference
+                between this suit and 筒. */}
+            <Rect
+              x={s.x - STICK_W / 2}
+              y={s.y - half}
+              width={STICK_W}
+              height={face.stickHeight}
+              rx={STICK_W / 2}
+              fill={colorOf(s.color)}
+            />
+            {/* Node lines. Narrower than the stick and hairline-thin, so they
+                suggest bamboo segments without severing it. Proportions come
+                from STICK_NODE so the "must not swallow the stick" rule is
+                testable — see the note on that constant. */}
+            {STICK_NODE.offsets.map((offset) => (
+              <Rect
+                key={offset}
+                x={s.x - (STICK_W * STICK_NODE.widthRatio) / 2}
+                y={s.y + face.stickHeight * offset
+                  - (face.stickHeight * STICK_NODE.heightRatio) / 2}
+                width={STICK_W * STICK_NODE.widthRatio}
+                height={face.stickHeight * STICK_NODE.heightRatio}
+                fill={tokens.color.tileFace}
+                opacity={STICK_NODE.opacity}
+              />
+            ))}
+          </React.Fragment>
+        );
+      })}
 
       {face.kind === 'glyph' && face.chars.map((char, i) => (
         <SvgText

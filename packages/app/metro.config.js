@@ -22,4 +22,29 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.disableHierarchicalLookup = true;
 
+// The engine and the app's own modules are TypeScript written in ESM style, so
+// a relative import says `./tiles.js` while the file on disk is `./tiles.ts`.
+// Node and tsc resolve that; Metro does not — it looks for a literal `.js` and
+// fails the bundle. Strip the extension so the `.ts`/`.tsx` is found.
+// Jest solves the same problem with the moduleNameMapper in `jest.config.js`.
+//
+// Scoped to OUR source: inside node_modules a `.js` specifier means a real
+// `.js` file and rewriting it does damage. `merge-options/index.mjs` is the
+// worked example — it imports `./index.js`, and the extensionless form
+// resolves back through the package's own `exports` map to `index.mjs`, so the
+// module becomes its own dependency and its default export is `undefined`.
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const resolve = defaultResolveRequest ?? context.resolveRequest;
+  const firstParty = !context.originModulePath.includes('node_modules');
+  if (firstParty && moduleName.startsWith('.') && moduleName.endsWith('.js')) {
+    try {
+      return resolve(context, moduleName.slice(0, -'.js'.length), platform);
+    } catch {
+      // Not a TypeScript source file — resolve the specifier as written.
+    }
+  }
+  return resolve(context, moduleName, platform);
+};
+
 module.exports = config;

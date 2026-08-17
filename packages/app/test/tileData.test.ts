@@ -1,5 +1,7 @@
 import { assertThat, assertEqual, assertAtLeast, assertAtMost } from './support';
-import { FACE_DATA, VIEWBOX } from '../src/tiles/tileData';
+import {
+  FACE_DATA, MIN_STICK_ASPECT, STICK_NODE, STICK_W, VIEWBOX,
+} from '../src/tiles/tileData';
 import { FLOWERS, FULL_TILE_SET, NON_FLOWER_KINDS, type TileKind } from '@mahjong/engine';
 
 describe('FACE_DATA', () => {
@@ -32,6 +34,88 @@ describe('FACE_DATA', () => {
       assertEqual(face.kind, 'bamboo', `${rank}b should be a bamboo face`);
       if (face.kind !== 'bamboo') throw new Error('unreachable');
       assertEqual(face.sticks.length, rank, `${rank}b has the wrong number of sticks`);
+    }
+  });
+
+  it('draws 條 as LINES, not dots', () => {
+    // This is the whole visual difference between 條 and 筒. A stick that is
+    // not decisively taller than it is wide makes 九條 read as 九筒 — which is
+    // exactly the bug this test was written for.
+    for (let rank = 1; rank <= 9; rank++) {
+      const face = FACE_DATA[`${rank}b` as TileKind];
+      if (face.kind !== 'bamboo') throw new Error(`${rank}b should be bamboo`);
+      const aspect = face.stickHeight / STICK_W;
+      assertAtLeast(
+        aspect, MIN_STICK_ASPECT,
+        `${rank}b sticks are ${face.stickHeight}x${STICK_W} (aspect ${aspect.toFixed(2)}) ` +
+          `— too stubby to read as a line`,
+      );
+    }
+  });
+
+  it('node markings decorate a stick instead of severing it', () => {
+    // The original art drew one node as an opaque ellipse 1.4x the stick's
+    // width, which cut every 索 into two stubs and made 九條 read as 九筒.
+    // A node must be narrower than the stick and a small fraction of its length.
+    assertThat(
+      STICK_NODE.widthRatio < 1,
+      `a node ${STICK_NODE.widthRatio}x the stick width would spill over its edges`,
+    );
+    assertAtMost(
+      STICK_NODE.heightRatio, 0.15,
+      'a node this thick relative to the stick reads as a break, not a segment line',
+    );
+    assertAtMost(
+      STICK_NODE.opacity, 0.7,
+      'a near-opaque node erases the stick underneath it',
+    );
+    // And the nodes must not merge into one another or reach the stick's ends.
+    const sorted = [...STICK_NODE.offsets].sort((a, b) => a - b);
+    for (let i = 1; i < sorted.length; i++) {
+      assertAtLeast(
+        sorted[i]! - sorted[i - 1]!, STICK_NODE.heightRatio * 2,
+        'adjacent nodes overlap into a single band',
+      );
+    }
+    for (const offset of sorted) {
+      assertAtMost(
+        Math.abs(offset) + STICK_NODE.heightRatio / 2, 0.5,
+        `a node at ${offset} runs off the end of the stick`,
+      );
+    }
+  });
+
+  it('never overlaps two sticks on the same tile', () => {
+    for (const [kind, face] of Object.entries(FACE_DATA)) {
+      if (face.kind !== 'bamboo') continue;
+      for (let i = 0; i < face.sticks.length; i++) {
+        for (let j = i + 1; j < face.sticks.length; j++) {
+          const a = face.sticks[i]!;
+          const b = face.sticks[j]!;
+          const apart =
+            Math.abs(a.x - b.x) >= STICK_W ||
+            Math.abs(a.y - b.y) >= face.stickHeight;
+          assertThat(
+            apart,
+            `${kind} sticks ${i} and ${j} overlap — ` +
+              `centres (${a.x},${a.y}) and (${b.x},${b.y}), ` +
+              `stick is ${STICK_W} wide by ${face.stickHeight} tall`,
+          );
+        }
+      }
+    }
+  });
+
+  it('keeps whole sticks inside the tile, ends included', () => {
+    for (const [kind, face] of Object.entries(FACE_DATA)) {
+      if (face.kind !== 'bamboo') continue;
+      const half = face.stickHeight / 2;
+      for (const s of face.sticks) {
+        assertAtLeast(s.x - STICK_W / 2, 0, `${kind} stick clips the left edge`);
+        assertAtMost(s.x + STICK_W / 2, VIEWBOX.w, `${kind} stick clips the right edge`);
+        assertAtLeast(s.y - half, 0, `${kind} stick clips the top`);
+        assertAtMost(s.y + half, VIEWBOX.h, `${kind} stick clips the bottom`);
+      }
     }
   });
 
@@ -90,14 +174,6 @@ describe('FACE_DATA', () => {
           assertAtMost(c.cx + c.r, VIEWBOX.w, `${kind} dot clips the right edge`);
           assertAtLeast(c.cy - c.r, 0, `${kind} dot clips the top`);
           assertAtMost(c.cy + c.r, VIEWBOX.h, `${kind} dot clips the bottom`);
-        }
-      }
-      if (face.kind === 'bamboo') {
-        for (const s of face.sticks) {
-          assertAtLeast(s.x, 1, `${kind} stick is off the left edge`);
-          assertAtMost(s.x, VIEWBOX.w - 1, `${kind} stick is off the right edge`);
-          assertAtLeast(s.y, 1, `${kind} stick is off the top`);
-          assertAtMost(s.y, VIEWBOX.h - 1, `${kind} stick is off the bottom`);
         }
       }
     }

@@ -2,3 +2,5 @@ node_modules/
 dist/
 .expo/
 *.tsbuildinfo
+# Screenshots and page snapshots from browser-driven QA of the web target.
+.playwright-mcp/
