@@ -4,6 +4,29 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.3.1] - 2026-08-17
+
+### Fixed
+
+- **You could not count a side opponent's tiles.** Their hand rendered as an
+  unbroken column of seventeen identical 4px bars — which is exactly the thing
+  an eye cannot count, and knowing someone is down to 13 changes how you play
+  against them. The slivers are now grouped in fours, so you read the column as
+  a tally (4, 8, 12, 16, remainder) instead of counting bars one at a time, and
+  each one carries a strip of the tile's ivory body beneath its green back —
+  the way a face-down tile actually looks from the side. The count also appears
+  as a plain number next to the name, because it costs nothing and settles it.
+
+  Thin is still forced: a vertical stack of 17 tiles at any recognisable tile
+  size needs ~186px of a ~144px band. Grouping is what was missing, not size.
+
+### Added
+
+- Render tests for the grouping rule: one sliver per concealed tile, breaks
+  every four, and never a trailing break off the end — a stray gap under the
+  stack reads as one extra tile. Both new guards were checked by breaking the
+  code and confirming they fail.
+
 ## [0.2.3.0] - 2026-08-17
 
 A second end-to-end walkthrough at 880x400, screen by screen, watching each one.

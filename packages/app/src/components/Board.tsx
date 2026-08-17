@@ -106,9 +106,19 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
   if (isVerticalEdge(edge)) {
     return (
       <View style={styles.edgeOnStack}>
-        {Array.from({ length: count }, (_, i) => (
-          <View key={i} style={styles.edgeOnTile} />
-        ))}
+        {Array.from({ length: count }, (_, i) => {
+          // Break after every fourth tile, but never trailing the last one.
+          const endsGroup = (i + 1) % EDGE_ON_TILE.groupSize === 0 && i + 1 < count;
+          return (
+            <View
+              key={i}
+              testID="concealed-sliver"
+              style={[styles.edgeOnTile, endsGroup && styles.edgeOnGroupBreak]}
+            >
+              <View style={styles.edgeOnFace} />
+            </View>
+          );
+        })}
       </View>
     );
   }
@@ -165,6 +175,9 @@ export function OpponentPanel({
     <View style={[styles.opponent, isTurn && styles.opponentTurn]}>
       <View style={styles.opponentHeader}>
         <Text style={styles.opponentName} numberOfLines={1}>{name}</Text>
+        {/* The side stacks are 4px slivers. Grouping them in fours makes them
+            countable, but the number itself costs nothing and settles it. */}
+        {sideways && <Text style={styles.handCount}>{opponent.handCount}</Text>}
         {!connected && <Text style={styles.covering}>{strings.botCovering}</Text>}
         {!sideways && exposed}
       </View>
@@ -256,6 +269,7 @@ const styles = StyleSheet.create({
   opponentHeader: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
   opponentName: { color: tokens.color.textOnFelt, fontSize: 13, fontWeight: '600' },
   covering: { color: tokens.color.accentGold, fontSize: 11 },
+  handCount: { color: tokens.color.textMuted, fontSize: 12, fontWeight: '700' },
   backs: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 2 },
   // Top seat: exposed tiles ride along the name row, which is otherwise mostly
   // empty space, so they cost the zone no extra height at all.
@@ -276,9 +290,20 @@ const styles = StyleSheet.create({
   edgeOnTile: {
     width: EDGE_ON_TILE.width,
     height: EDGE_ON_TILE.height,
-    borderRadius: EDGE_ON_TILE.height / 2,
+    borderRadius: 1,
     backgroundColor: tokens.color.tileBack,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
+  // The ivory body under the green back, as you would see it from the side.
+  // Also what separates one sliver from the next at this size.
+  edgeOnFace: {
+    height: EDGE_ON_TILE.faceEdge,
+    // `tileFace`, not `tileFaceEdge`: the brighter pair is the one
+    // `contrast.test.ts` already holds to 2.31:1 against the back.
+    backgroundColor: tokens.color.tileFace,
+  },
+  edgeOnGroupBreak: { marginBottom: EDGE_ON_TILE.groupGap },
   center: { alignItems: 'center', gap: 1 },
   centerWind: { color: tokens.color.accentGold, fontSize: 22, fontWeight: '700' },
   centerWall: { color: tokens.color.textOnFelt, fontSize: 12 },

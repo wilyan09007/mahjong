@@ -100,8 +100,24 @@ export const TABLE_ZONES = {
  * looks like from their left or right and the only way 17 of them fit the
  * middle band of a phone screen. Rendered as full tile backs they need ~186px
  * of a ~152px zone, which is what pushed the side panels through the table.
+ *
+ * Thin is forced, but featureless is not. Each sliver carries a strip of the
+ * tile's ivory body under its green back, the way a face-down tile actually
+ * looks from the side, and they are grouped in fours. An unbroken column of 17
+ * identical bars is precisely the thing an eye cannot count; in fours you read
+ * it the way you read a tally — 4, 8, 12, 16, and the remainder.
  */
-export const EDGE_ON_TILE = { width: 34, height: 4, gap: 2 } as const;
+export const EDGE_ON_TILE = {
+  width: 34,
+  height: 4,
+  /** Between tiles within a group of four. */
+  gap: 1,
+  /** Extra separation between groups, on top of `gap`. */
+  groupGap: 4,
+  groupSize: 4,
+  /** The ivory sliver of tile body showing beneath the back. */
+  faceEdge: 1,
+} as const;
 
 export type TileSizeName = keyof typeof TILE_SIZES;
 

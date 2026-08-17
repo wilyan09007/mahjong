@@ -89,7 +89,10 @@ describe('landscape table fits a phone', () => {
     // backs, 17 of them stack ~186px deep in a ~152px band, which is what drove
     // the side panels straight through the middle of the table.
     const middle = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
-    const stack = 17 * (EDGE_ON_TILE.height + EDGE_ON_TILE.gap);
+    // 17 slivers, 16 gaps, and an extra break after every fourth tile.
+    const stack = 17 * EDGE_ON_TILE.height
+      + 16 * EDGE_ON_TILE.gap
+      + Math.floor(16 / EDGE_ON_TILE.groupSize) * EDGE_ON_TILE.groupGap;
     // Exposed tiles sit BESIDE the stack, so they cost width, not height — the
     // panel is as tall as the taller of the two, not their sum.
     const body = Math.max(stack, 4 * (tileHeight(TILE_SIZES.mini) + 1));
@@ -106,6 +109,31 @@ describe('landscape table fits a phone', () => {
     assertAtLeast(
       asFullTiles + nameAndMelds, middle,
       'full tile backs now fit, so the edge-on rendering is no longer load-bearing',
+    );
+  });
+
+  it("a side opponent's tiles are grouped so they can be counted", () => {
+    // The functional requirement, not decoration: you play differently against
+    // someone holding 16 than someone holding 13, and an unbroken column of 17
+    // identical 4px bars cannot be counted at a glance. Groups must be visibly
+    // further apart than the tiles inside them, or the grouping does nothing.
+    assertAtLeast(
+      EDGE_ON_TILE.groupGap, EDGE_ON_TILE.gap * 2,
+      `a ${EDGE_ON_TILE.groupGap}px break between groups against ` +
+        `${EDGE_ON_TILE.gap}px between tiles is not a visible group boundary`,
+    );
+    assertAtMost(
+      EDGE_ON_TILE.groupSize, 5,
+      'groups larger than five defeat the point — counting a group of six ' +
+        'is the same problem as counting seventeen',
+    );
+    // And the sliver has to be more than a bar: it carries a strip of the
+    // tile's ivory body, which is also what separates it from its neighbour.
+    assertAtLeast(EDGE_ON_TILE.faceEdge, 1, 'the tile face strip has vanished');
+    assertAtMost(
+      EDGE_ON_TILE.faceEdge, EDGE_ON_TILE.height / 2,
+      'the ivory strip is half the sliver or more, so it reads as an ivory ' +
+        'bar rather than a tile back with its body showing',
     );
   });
 

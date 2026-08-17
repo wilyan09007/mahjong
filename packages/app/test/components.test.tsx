@@ -1,10 +1,11 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 import { assertThat } from './support';
 import { TileFace } from '../src/tiles/TileFace';
 import { Tile } from '../src/tiles/Tile';
 import { ActionBar } from '../src/components/Controls';
-import { HandRow } from '../src/components/Board';
+import { HandRow, OpponentPanel } from '../src/components/Board';
 import { actionBarModel } from '../src/state/selectors';
 import { FLOWERS, NON_FLOWER_KINDS, newHand, viewFor } from '@mahjong/engine';
 import type { Action, TileKind } from '@mahjong/engine';
@@ -284,5 +285,54 @@ describe('ActionBar', () => {
         expect(screen.toJSON()).toBeNull();
       },
     );
+  });
+});
+
+describe('OpponentPanel — a side seat you have to count', () => {
+  const state = newHand({ seed: 4242, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+  const me = viewFor(state, 0);
+  const sideOpponent = me.opponents[0]!;
+
+  /** One sliver per tile, grouped in fours so the column can be counted. */
+  async function slivers(handCount: number): Promise<{ total: number; breaks: number }> {
+    return mounted(
+      <OpponentPanel
+        opponent={{ ...sideOpponent, handCount }}
+        edge="left"
+        isTurn={false}
+        connected
+        name="Bot 4"
+      />,
+      (screen) => {
+        const found = screen.queryAllByTestId('concealed-sliver');
+        const breaks = found.filter((s) => {
+          const flat = StyleSheet.flatten(s.props.style) as { marginBottom?: number };
+          return (flat.marginBottom ?? 0) > 0;
+        }).length;
+        return { total: found.length, breaks };
+      },
+    );
+  }
+
+  it('draws exactly one sliver per concealed tile', async () => {
+    for (const count of [16, 13, 10, 7, 4, 1]) {
+      const { total } = await slivers(count);
+      assertThat(
+        total === count,
+        `a hand of ${count} drew ${total} slivers — the stack is the only ` +
+          'thing telling you how many tiles someone is holding',
+      );
+    }
+  });
+
+  it('breaks the column into fours, and never trails a break off the end', async () => {
+    // 16 tiles is 4|4|4|4 — three breaks, not four. A trailing break leaves a
+    // floating gap under the stack that reads as a seventeenth tile.
+    expect((await slivers(16)).breaks).toBe(3);
+    // 13 after a pung is 4|4|4|1: the remainder still gets its own group.
+    expect((await slivers(13)).breaks).toBe(3);
+    expect((await slivers(8)).breaks).toBe(1);
+    expect((await slivers(4)).breaks).toBe(0);
+    expect((await slivers(1)).breaks).toBe(0);
   });
 });
