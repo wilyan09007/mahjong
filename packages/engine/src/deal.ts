@@ -17,6 +17,12 @@ import { isFlower, sortTiles, type FlowerKind, type Seat, type TileKind } from '
 export interface DealResult {
   hands: TileKind[][];
   flowers: FlowerKind[][];
+  /**
+   * The dealer's 17th tile — their opening "draw". Captured before the hands
+   * are sorted, because sorting destroys the only record of which tile arrived
+   * last, and scoring a 天胡 needs it by identity.
+   */
+  dealerLastTile: TileKind;
   /** Next index to draw from the front (normal draws). */
   wallFront: number;
   /** Next index to draw from the back (flower and kong replacements). */
@@ -57,9 +63,14 @@ export function dealHands(tiles: TileKind[], dealer: Seat): DealResult {
     }
   }
 
+  // Flower replacement writes in place, so slot 16 is still the dealer's 17th
+  // tile — but only until the hands are sorted, so read it now.
+  const dealerLastTile = hands[dealer]![16]!;
+
   return {
     hands: hands.map((h) => sortTiles(h)),
     flowers,
+    dealerLastTile,
     wallFront: front,
     wallBack: back,
   };

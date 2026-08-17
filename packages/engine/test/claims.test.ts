@@ -118,6 +118,35 @@ describe('claim window', () => {
     expect(s3.phase).toBe('finished');
     expect(s3.players[3].hand).toHaveLength(17);
     expect(s3.players[0].discards).toEqual([]);
+
+    expect(s3.result?.type).toBe('win');
+    if (s3.result?.type !== 'win') throw new Error('expected a win result');
+    expect(s3.result.winner).toBe(3);
+    expect(s3.result.by).toBe('discard');
+    expect(s3.result.discarder).toBe(0);
+    expect(s3.result.winTile).toBe('we');
+    expect(s3.result.payments.reduce((a, b) => a + b, 0)).toBe(0);
+    expect(s3.result.payments[3]).toBeGreaterThan(0);
+    expect(s3.result.payments[0]).toBeLessThan(0);
+    expect(s3.result.tai).toBeGreaterThan(0);
+    expect(s3.result.breakdown.length).toBeGreaterThan(0);
+    expect(s3.result.winningHand.concealed).toHaveLength(17);
+  });
+
+  it('an exhausted wall produces a draw result, not a null one', () => {
+    let s = newHand({ seed: 3, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+    let guard = 0;
+    while (s.phase !== 'finished') {
+      expect(guard++).toBeLessThan(2000);
+      if (s.phase === 'awaiting-claims') {
+        const seat = ([0, 1, 2, 3] as const).find((x) => legalActions(s, x).length > 0)!;
+        s = applyAction(s, { type: 'pass', seat });
+      } else {
+        s = applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
+      }
+    }
+    expect(s.result).not.toBeNull();
+    expect(s.result!.type).toBe('draw-exhausted');
   });
 
   it('claiming a kong from a discard draws a replacement and keeps the turn', () => {

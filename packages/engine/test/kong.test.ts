@@ -95,6 +95,14 @@ describe('added kong and robbing', () => {
     expect(s2.players[0].hand.filter((t) => t === 'ws')).toHaveLength(0);
     // The meld stays a pung — the kong never completed.
     expect(s2.players[0].melds[0]!.type).toBe('pung');
+
+    expect(s2.result?.type).toBe('win');
+    if (s2.result?.type !== 'win') throw new Error('expected a win result');
+    expect(s2.result.winner).toBe(2);
+    expect(s2.result.discarder).toBe(0);
+    expect(s2.result.winTile).toBe('ws');
+    expect(s2.result.breakdown).toContainEqual({ name: '搶槓', tai: 1 });
+    expect(s2.result.payments.reduce((a, b) => a + b, 0)).toBe(0);
   });
 
   it('offers the rob only as a win, and only to seats that can take it', () => {

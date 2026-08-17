@@ -30,6 +30,9 @@ import {
   type ClaimOption, type PendingClaims,
 } from './claims.js';
 import { isWinningHand } from './win.js';
+import { computePayments } from './scoring/payments.js';
+import type { ScoreContext, TaiItem } from './scoring/taiwanese.js';
+import { resolveVariant, type VariantId } from './variant.js';
 import { isFlower, sortTiles, type FlowerKind, type Seat, type TileKind, type Wind } from './tiles.js';
 
 export type { ClaimAction, ClaimKind, ClaimOption, PendingClaims } from './claims.js';
@@ -44,9 +47,24 @@ export class IllegalActionError extends Error {
 
 export type Phase = 'awaiting-discard' | 'awaiting-claims' | 'finished';
 
-// Compile-time seam filled in by Task 10 (scoring). It exists now so the file
-// typechecks; every use site is named in the plan.
-export type HandResult = never;
+/**
+ * How the hand ended. `winningHand` is a snapshot taken at the moment of the
+ * win so the Results screen can lay the tiles out even after the state moves on.
+ */
+export type HandResult =
+  | {
+      type: 'win';
+      winner: Seat;
+      by: 'self-draw' | 'discard';
+      discarder: Seat | null;
+      /** The tile that completed the hand. */
+      winTile: TileKind;
+      tai: number;
+      breakdown: TaiItem[];
+      payments: [number, number, number, number];
+      winningHand: { concealed: TileKind[]; melds: Meld[]; flowers: FlowerKind[] };
+    }
+  | { type: 'draw-exhausted' };
 
 export interface PlayerState {
   /** Concealed tiles, always kept sorted. Never contains a flower. */
@@ -82,6 +100,11 @@ export interface GameState {
   dealerStreak: number;
   roundWind: Wind;
   rules: HandRules;
+  /**
+   * Resolved through `VARIANTS` rather than stored as a function, so the whole
+   * state stays plain JSON — cloneable here, serialisable by the server.
+   */
+  variantId: VariantId;
   turn: Seat;
   phase: Phase;
   players: [PlayerState, PlayerState, PlayerState, PlayerState];
@@ -99,6 +122,12 @@ export interface GameState {
    * `win` for that tile at higher priority, so nothing legitimate is lost.
    */
   drewThisTurn: boolean;
+  /**
+   * The tile most recently taken into the turn seat's hand. This is the winning
+   * tile of a self-draw win, and scoring needs it by identity (獨聽 is computed
+   * from the hand minus this tile), which a sorted hand cannot recover.
+   */
+  lastDrawnTile: TileKind | null;
   /**
    * An added kong waiting on its 搶槓 window. The 4th tile is still in the
    * declarer's hand while the window is open — it only moves onto the meld if
@@ -132,9 +161,10 @@ export function newHand(args: {
   dealerStreak: number;
   roundWind: Wind;
   rules?: HandRules;
+  variantId?: VariantId;
 }): GameState {
   const tiles = buildWall(args.seed);
-  const { hands, flowers, wallFront, wallBack } = dealHands(tiles, args.dealer);
+  const { hands, flowers, dealerLastTile, wallFront, wallBack } = dealHands(tiles, args.dealer);
   const players = ([0, 1, 2, 3] as const).map((s) => ({
     hand: hands[s]!,
     melds: [] as Meld[],
@@ -151,6 +181,7 @@ export function newHand(args: {
     dealerStreak: args.dealerStreak,
     roundWind: args.roundWind,
     rules: args.rules ?? DEFAULT_RULES,
+    variantId: args.variantId ?? 'taiwanese',
     turn: args.dealer,
     phase: 'awaiting-discard',
     players,
@@ -160,6 +191,7 @@ export function newHand(args: {
     // The dealer's 17th tile is their opening draw, so a dealt winning hand is
     // a legitimate self-draw win (天胡).
     drewThisTurn: true,
+    lastDrawnTile: dealerLastTile,
     pendingKong: null,
     wasKongRob: false,
     wasLastTile: false,
@@ -206,6 +238,7 @@ function drawFor(s: GameState, seat: Seat): boolean {
   }
   s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
   s.drewThisTurn = true;
+  s.lastDrawnTile = tile;
   // 海底撈月: nothing is drawable after this one.
   if (wallRemaining(s) <= WALL_FLOOR) s.wasLastTile = true;
   return true;
@@ -261,8 +294,77 @@ function completePendingKong(s: GameState): void {
 
 function endExhaustive(s: GameState): void {
   s.phase = 'finished';
-  s.result = null; // wired to a real draw result in Task 10
+  s.result = { type: 'draw-exhausted' };
   s.pendingClaims = null;
+  s.pendingKong = null;
+}
+
+/**
+ * The single place a win is scored. All three win paths — self-draw, claiming a
+ * discard, and robbing a kong — go through here so they cannot disagree about
+ * how a `ScoreContext` is assembled.
+ *
+ * The winning tile is passed in rather than inferred: after `sortTiles` the
+ * hand no longer remembers which tile arrived last, and 獨聽 is computed from
+ * the hand *minus* that specific tile.
+ */
+function finishWithWin(
+  s: GameState,
+  winner: Seat,
+  by: 'self-draw' | 'discard',
+  discarder: Seat | null,
+  winTile: TileKind,
+): void {
+  const p = s.players[winner];
+  const ctx: ScoreContext = {
+    concealed: p.hand,
+    melds: p.melds,
+    flowers: p.flowers,
+    winTile,
+    by,
+    winner,
+    dealer: s.dealer,
+    dealerStreak: s.dealerStreak,
+    roundWind: s.roundWind,
+    // 門清: nothing was ever taken from another player. A concealed kong is
+    // self-made and does not break it.
+    madeNoClaims: p.melds.every((m) => m.concealed && m.claimedFrom === null),
+    wasReplacementDraw: s.lastDrawWasReplacement,
+    wasKongRob: s.wasKongRob,
+    wasLastTile: s.wasLastTile,
+  };
+
+  const { tai, breakdown } = resolveVariant(s.variantId).score(ctx);
+  const payments = computePayments({
+    tai,
+    base: s.rules.base,
+    perTai: s.rules.perTai,
+    winner,
+    dealer: s.dealer,
+    dealerStreak: s.dealerStreak,
+    by,
+    discarder,
+  });
+
+  s.phase = 'finished';
+  s.turn = winner;
+  s.pendingClaims = null;
+  s.pendingKong = null;
+  s.result = {
+    type: 'win',
+    winner,
+    by,
+    discarder,
+    winTile,
+    tai,
+    breakdown,
+    payments,
+    winningHand: {
+      concealed: [...p.hand],
+      melds: structuredClone(p.melds),
+      flowers: [...p.flowers],
+    },
+  };
 }
 
 /** Nobody took the discard: the seat to the discarder's left draws and plays. */
@@ -317,9 +419,7 @@ function resolvePendingClaims(s: GameState): void {
     s.pendingKong = null;
     s.wasKongRob = true;
     s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
-    s.turn = seat;
-    s.phase = 'finished';
-    s.result = null; // scored in Task 10
+    finishWithWin(s, seat, 'discard', pc.from, tile);
     return;
   }
 
@@ -337,9 +437,7 @@ function resolvePendingClaims(s: GameState): void {
 
   if (winning.claim === 'win') {
     s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
-    s.turn = seat;
-    s.phase = 'finished';
-    s.result = null; // scored in Task 10
+    finishWithWin(s, seat, 'discard', pc.from, tile);
     return;
   }
 
@@ -377,6 +475,7 @@ function resolvePendingClaims(s: GameState): void {
     // Chow and pung take no tile from the wall, so the claimer has not drawn:
     // `self-win` stays blocked and 槓上開花 does not apply.
     s.drewThisTurn = false;
+    s.lastDrawnTile = null;
     s.lastDrawWasReplacement = false;
   }
 }
@@ -442,8 +541,10 @@ export function applyAction(state: GameState, action: Action): GameState {
           `hand is not winning (hand: ${s.players[action.seat].hand.join(' ')})`,
         );
       }
-      s.phase = 'finished';
-      s.result = null; // scored in Task 10
+      if (s.lastDrawnTile === null) {
+        reject(s, action, 'no drawn tile is on record to win with');
+      }
+      finishWithWin(s, action.seat, 'self-draw', null, s.lastDrawnTile);
       return s;
     }
     case 'claim':
