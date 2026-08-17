@@ -7,6 +7,32 @@ function start(): GameState {
   return newHand({ seed: 9, dealer: 0, dealerStreak: 0, roundWind: 'E' });
 }
 
+/**
+ * Advance the hand by one legal action, always choosing the dullest option:
+ * pass on every claim, otherwise discard the first tile in hand. That keeps
+ * these tests about turn plumbing rather than strategy, and it exercises the
+ * claim window (which every discard now opens) instead of skipping past it.
+ */
+function step(s: GameState): GameState {
+  if (s.phase === 'awaiting-claims') {
+    const seat = ([0, 1, 2, 3] as const).find((x) => legalActions(s, x).length > 0);
+    expect(seat, `claim window open but no seat can respond: ${JSON.stringify(s.pendingClaims)}`)
+      .toBeDefined();
+    return applyAction(s, { type: 'pass', seat: seat! });
+  }
+  return applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
+}
+
+/** Play to the end, failing loudly if the hand never terminates. */
+function playToEnd(s: GameState, limit = 2000): GameState {
+  let guard = 0;
+  while (s.phase !== 'finished') {
+    expect(guard++, `hand did not finish within ${limit} actions`).toBeLessThan(limit);
+    s = step(s);
+  }
+  return s;
+}
+
 /** Every tile that exists somewhere in the state. Must always be 144. */
 function totalTiles(s: GameState): number {
   const held = s.players.reduce(
@@ -64,8 +90,8 @@ describe('discard and auto-draw', () => {
   });
   it('never leaves a flower sitting in a hand', () => {
     let s = start();
-    for (let i = 0; i < 40 && s.phase !== 'finished'; i++) {
-      s = applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
+    for (let i = 0; i < 200 && s.phase !== 'finished'; i++) {
+      s = step(s);
       for (const p of s.players) {
         expect(p.hand.some(isFlower), `flower left in hand: ${p.hand.join(',')}`).toBe(false);
       }
@@ -73,8 +99,8 @@ describe('discard and auto-draw', () => {
   });
   it('conserves 144 tiles across many plays', () => {
     let s = start();
-    for (let i = 0; i < 40 && s.phase !== 'finished'; i++) {
-      s = applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
+    for (let i = 0; i < 200 && s.phase !== 'finished'; i++) {
+      s = step(s);
       expect(totalTiles(s), `tile count broke on step ${i}`).toBe(144);
     }
   });
@@ -99,12 +125,7 @@ describe('legalActions', () => {
     }
   });
   it('offers nothing at all once the hand is finished', () => {
-    let s = start();
-    let guard = 0;
-    while (s.phase !== 'finished' && guard++ < 500) {
-      s = applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
-    }
-    expect(s.phase).toBe('finished');
+    const s = playToEnd(start());
     for (const seat of [0, 1, 2, 3] as const) expect(legalActions(s, seat)).toEqual([]);
     expect(() => applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! }))
       .toThrow(IllegalActionError);
@@ -113,13 +134,19 @@ describe('legalActions', () => {
 
 describe('exhaustive draw', () => {
   it('finishes the hand when the wall reaches its 16-tile floor', () => {
-    let s = start();
-    let guard = 0;
-    while (s.phase !== 'finished' && guard++ < 500) {
-      s = applyAction(s, { type: 'discard', seat: s.turn, tile: s.players[s.turn].hand[0]! });
-    }
-    expect(s.phase).toBe('finished');
+    const s = playToEnd(start());
     expect(s.wallBack - s.wallFront + 1).toBeLessThanOrEqual(16);
     expect(totalTiles(s)).toBe(144);
+  });
+  it('always leaves someone able to act until the hand is over', () => {
+    let s = start();
+    let guard = 0;
+    while (s.phase !== 'finished') {
+      expect(guard++).toBeLessThan(2000);
+      const actors = ([0, 1, 2, 3] as const).filter((x) => legalActions(s, x).length > 0);
+      expect(actors.length, `deadlock at step ${guard}: phase=${s.phase} turn=${s.turn}`)
+        .toBeGreaterThan(0);
+      s = step(s);
+    }
   });
 });

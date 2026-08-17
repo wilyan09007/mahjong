@@ -22,9 +22,14 @@
 
 import { dealHands } from './deal.js';
 import { buildWall } from './wall.js';
-import { addedKongOptions, concealedKongOptions, type Meld } from './melds.js';
+import {
+  addedKongOptions, chowOptions, concealedKongOptions, type Meld,
+} from './melds.js';
+import { computeClaimOptions, eligibleSeats, resolveClaims, type PendingClaims } from './claims.js';
 import { isWinningHand } from './win.js';
 import { isFlower, sortTiles, type FlowerKind, type Seat, type TileKind, type Wind } from './tiles.js';
+
+export type { ClaimAction, ClaimKind, ClaimOption, PendingClaims } from './claims.js';
 
 /** Thrown for any action the rules do not permit. Never swallowed. */
 export class IllegalActionError extends Error {
@@ -36,9 +41,8 @@ export class IllegalActionError extends Error {
 
 export type Phase = 'awaiting-discard' | 'awaiting-claims' | 'finished';
 
-// Compile-time seams filled in by Task 8 (claims) and Task 10 (scoring). They
-// exist now so the file typechecks; every use site is named in the plan.
-export type PendingClaims = never;
+// Compile-time seam filled in by Task 10 (scoring). It exists now so the file
+// typechecks; every use site is named in the plan.
 export type HandResult = never;
 
 export interface PlayerState {
@@ -188,10 +192,132 @@ function drawFor(s: GameState, seat: Seat): boolean {
   return true;
 }
 
+/**
+ * Draw a replacement from the BACK of the wall (the dead wall) after a kong.
+ * Flowers found there are exposed and the draw repeats. Returns false at the
+ * wall floor, which ends the hand.
+ */
+function drawReplacementFor(s: GameState, seat: Seat): boolean {
+  for (;;) {
+    if (wallRemaining(s) <= WALL_FLOOR) return false;
+    const tile = s.tiles[s.wallBack--]!;
+    if (isFlower(tile)) {
+      s.players[seat].flowers.push(tile);
+      continue;
+    }
+    s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
+    s.lastDrawWasReplacement = true;
+    s.drewThisTurn = true;
+    return true;
+  }
+}
+
 function endExhaustive(s: GameState): void {
   s.phase = 'finished';
   s.result = null; // wired to a real draw result in Task 10
   s.pendingClaims = null;
+}
+
+/** Nobody took the discard: the seat to the discarder's left draws and plays. */
+function advanceAfterDiscard(s: GameState, discarder: Seat): void {
+  const next = ((discarder + 1) % 4) as Seat;
+  s.turn = next;
+  s.phase = 'awaiting-discard';
+  s.drewThisTurn = false;
+  if (!drawFor(s, next)) endExhaustive(s);
+}
+
+/** Remove exactly these tiles from a hand, or throw naming the one that is missing. */
+function spendFromHand(s: GameState, seat: Seat, tiles: TileKind[]): void {
+  const hand = s.players[seat].hand;
+  for (const t of tiles) {
+    const i = hand.indexOf(t);
+    if (i === -1) {
+      throw new IllegalActionError(
+        `seat ${seat} cannot spend ${t}: not in hand (hand: ${hand.join(' ')})`,
+      );
+    }
+    hand.splice(i, 1);
+  }
+}
+
+/**
+ * Everyone eligible has answered — award the tile and hand back control.
+ *
+ * Claim execution is centralised here (rather than inlined per action) because
+ * all three win paths and both meld paths must agree on the same bookkeeping:
+ * the tile leaves the pond exactly once, and `turn` always ends up on whoever
+ * is next to act.
+ */
+function resolvePendingClaims(s: GameState): void {
+  const pc = s.pendingClaims!;
+  const winning = resolveClaims(pc);
+  s.pendingClaims = null;
+
+  if (winning === null) {
+    advanceAfterDiscard(s, pc.from);
+    return;
+  }
+
+  const seat = winning.seat;
+  const tile = pc.tile;
+
+  // The claimed tile leaves the discarder's pond — it was never really theirs.
+  const discards = s.players[pc.from].discards;
+  const di = discards.lastIndexOf(tile);
+  if (di === -1) {
+    throw new IllegalActionError(
+      `claimed tile ${tile} is not in seat ${pc.from}'s discards ` +
+        `(${discards.join(' ') || 'empty'})`,
+    );
+  }
+  discards.splice(di, 1);
+  s.lastDiscard = null;
+
+  if (winning.claim === 'win') {
+    s.players[seat].hand = sortTiles([...s.players[seat].hand, tile]);
+    s.turn = seat;
+    s.phase = 'finished';
+    s.result = null; // scored in Task 10
+    return;
+  }
+
+  switch (winning.claim) {
+    case 'chow': {
+      const [a, b] = winning.chowTiles!;
+      spendFromHand(s, seat, [a, b]);
+      s.players[seat].melds.push({
+        type: 'chow', tiles: sortTiles([a, b, tile]), concealed: false, claimedFrom: pc.from,
+      });
+      break;
+    }
+    case 'pung': {
+      spendFromHand(s, seat, [tile, tile]);
+      s.players[seat].melds.push({
+        type: 'pung', tiles: [tile, tile, tile], concealed: false, claimedFrom: pc.from,
+      });
+      break;
+    }
+    case 'kong': {
+      spendFromHand(s, seat, [tile, tile, tile]);
+      s.players[seat].melds.push({
+        type: 'kong', tiles: [tile, tile, tile, tile], concealed: false, claimedFrom: pc.from,
+      });
+      break;
+    }
+  }
+
+  s.turn = seat;
+  s.phase = 'awaiting-discard';
+  if (winning.claim === 'kong') {
+    // A kong claimer takes a replacement and discards from 17 again.
+    if (!drawReplacementFor(s, seat)) endExhaustive(s);
+  } else {
+    // Chow and pung take no tile from the wall, so the claimer has not drawn:
+    // `self-win` stays blocked and 槓上開花 does not apply.
+    s.drewThisTurn = false;
+    s.lastDrawWasReplacement = false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -224,11 +350,21 @@ export function applyAction(state: GameState, action: Action): GameState {
       hand.splice(i, 1);
       s.players[action.seat].discards.push(action.tile);
       s.lastDiscard = { tile: action.tile, by: action.seat };
-      // Task 8 inserts the claim window here. For now: advance.
-      const next = ((s.turn + 1) % 4) as Seat;
-      s.turn = next;
-      s.drewThisTurn = false;
-      if (!drawFor(s, next)) endExhaustive(s);
+
+      // Anyone who can take this tile gets the chance before play moves on.
+      const options = computeClaimOptions(s);
+      if (options.length > 0) {
+        s.phase = 'awaiting-claims';
+        s.pendingClaims = {
+          tile: action.tile,
+          from: action.seat,
+          source: 'discard',
+          options,
+          responses: {},
+        };
+        return s;
+      }
+      advanceAfterDiscard(s, action.seat);
       return s;
     }
     case 'self-win': {
@@ -249,14 +385,91 @@ export function applyAction(state: GameState, action: Action): GameState {
       s.result = null; // scored in Task 10
       return s;
     }
+    case 'claim':
+    case 'pass': {
+      if (s.phase !== 'awaiting-claims' || !s.pendingClaims) {
+        reject(s, action, 'no claim window is open');
+      }
+      const pc = s.pendingClaims;
+      const seats = eligibleSeats(pc);
+      if (!seats.includes(action.seat)) {
+        reject(
+          s,
+          action,
+          `seat ${action.seat} has no claim on ${pc.tile} ` +
+            `(eligible seats: ${seats.join(', ') || 'none'})`,
+        );
+      }
+      if (pc.responses[action.seat] !== undefined) {
+        reject(s, action, `seat ${action.seat} has already responded to this window`);
+      }
+      if (action.type === 'claim') {
+        const entitled = pc.options.some(
+          (o) => o.seat === action.seat && o.claim === action.claim,
+        );
+        if (!entitled) {
+          const mine = pc.options.filter((o) => o.seat === action.seat).map((o) => o.claim);
+          reject(
+            s,
+            action,
+            `seat ${action.seat} cannot ${action.claim} ${pc.tile} ` +
+              `(available: ${mine.join(', ') || 'none'})`,
+          );
+        }
+        if (action.claim === 'chow') {
+          const pair = action.chowTiles;
+          if (!pair) {
+            reject(s, action, `a chow claim must name its chowTiles`);
+          }
+          const legal = chowOptions(s.players[action.seat].hand, pc.tile)
+            .some(([a, b]) => a === pair[0] && b === pair[1]);
+          if (!legal) {
+            reject(
+              s,
+              action,
+              `${pair.join('+')} is not a legal chow for ${pc.tile} ` +
+                `(hand: ${s.players[action.seat].hand.join(' ')})`,
+            );
+          }
+        }
+      }
+
+      pc.responses[action.seat] = action;
+      if (seats.every((x) => pc.responses[x] !== undefined)) {
+        resolvePendingClaims(s);
+      }
+      return s;
+    }
     // 'concealed-kong' / 'added-kong': implemented in Task 9
-    // 'claim' / 'pass': implemented in Task 8
     default:
       reject(s, action, `unsupported action`);
   }
 }
 
 export function legalActions(state: GameState, seat: Seat): Action[] {
+  if (state.phase === 'awaiting-claims') {
+    const pc = state.pendingClaims;
+    if (!pc) return [];
+    // A seat that already answered is done; the window is waiting on others.
+    if (pc.responses[seat] !== undefined) return [];
+    const mine = pc.options.filter((o) => o.seat === seat);
+    if (mine.length === 0) return [];
+    const actions: Action[] = [];
+    for (const option of mine) {
+      if (option.claim === 'chow') {
+        // One action per distinct run the hand can build, so a caller never has
+        // to guess which two tiles to spend.
+        for (const [a, b] of chowOptions(state.players[seat].hand, pc.tile)) {
+          actions.push({ type: 'claim', seat, claim: 'chow', chowTiles: [a, b] });
+        }
+      } else {
+        actions.push({ type: 'claim', seat, claim: option.claim });
+      }
+    }
+    actions.push({ type: 'pass', seat });
+    return actions;
+  }
+
   if (state.phase !== 'awaiting-discard' || seat !== state.turn) return [];
   const p = state.players[seat];
   const actions: Action[] = [...new Set(p.hand)].map((tile) => ({
