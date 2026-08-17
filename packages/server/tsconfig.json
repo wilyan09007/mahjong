@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "moduleResolution": "bundler",
+    "allowJs": true
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}
