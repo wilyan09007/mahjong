@@ -4,6 +4,32 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.5.1] - 2026-08-17
+
+### Changed
+
+- **A side player's concealed tiles are plain backs again.** Each sliver had
+  been given a strip of ivory body along its bottom edge to look more tile-like;
+  tiles pushed flush together do not show their bodies that way, and the result
+  read as a stack of stripes. Counting is handled by the grouping in fours and
+  the printed count, which is what was doing the work anyway.
+- **A side player's completed sets are drawn at `mini` again, not `micro`.** The
+  13px size was small enough to be unreadable, which defeats the point of
+  showing an exposed meld at all. `micro` is deleted from the tile sizes
+  outright. The rim widened from 96px to 112px to hold three `mini` tiles beside
+  the stack — width well spent, since a revealed meld is the strongest read you
+  get on another player. Discard ponds are unaffected at the 880px target.
+
+### Added
+
+- **Opponent panels in `/dev-gallery`**, for all three edges, loaded with four
+  melds and four flowers. Judging these in a live game means waiting for a bot
+  to claim before a single meld appears on the rim; now they can be looked at on
+  demand, at exactly the width the table gives them.
+- A budget test for the rim: a side panel's stack plus three exposed tiles must
+  fit `TABLE_ZONES.side`, and `mini` must stay big enough to identify — the two
+  failures that produced the last two versions, one in each direction.
+
 ## [0.2.5.0] - 2026-08-17
 
 A placement pass over the whole table, done by measuring every component's

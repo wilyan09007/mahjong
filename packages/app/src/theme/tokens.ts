@@ -69,13 +69,6 @@ export const TILE_SIZES = {
   discard: 24,
   meld: 28,
   mini: 18,
-  /**
-   * A side seat's exposed melds and flowers, in the narrow rim beside their
-   * concealed stack. Small enough that four melds and their flowers fit the
-   * column without spilling: at `mini` they ran 31px off the right of the
-   * screen and 80px across the playing surface on the left.
-   */
-  micro: 13,
 } as const;
 
 /**
@@ -116,8 +109,13 @@ export const TABLE_ZONES = {
    * The rim down each side, where the left and right players sit. The playing
    * surface is inset by this much, so their tiles rest on the rim rather than
    * floating in the middle of the table.
+   *
+   * Wide enough for a sliver stack plus three `mini` tiles of exposed melds
+   * side by side. A narrower rim forced those melds down to a size you could
+   * not read, which is worse than spending the width — an exposed meld is the
+   * strongest read you get on another player.
    */
-  side: 96,
+  side: 112,
   /**
    * The emote row along the bottom. The action stack stops here rather than
    * running to the floor: anchored any lower it sat on the emotes, and
@@ -143,22 +141,24 @@ export const TABLE_ZONES = {
  * middle band of a phone screen. Rendered as full tile backs they need ~186px
  * of a ~152px zone, which is what pushed the side panels through the table.
  *
- * Thin is forced, but featureless is not. Each sliver carries a strip of the
- * tile's ivory body under its green back, the way a face-down tile actually
- * looks from the side, and they are grouped in fours. An unbroken column of 17
- * identical bars is precisely the thing an eye cannot count; in fours you read
- * it the way you read a tally — 4, 8, 12, 16, and the remainder.
+ * Plain tile backs, nothing else on them. An earlier version gave each sliver a
+ * strip of ivory body along its bottom edge for the sake of looking tile-like;
+ * tiles pushed flush together do not show their bodies that way, and the result
+ * read as a stack of stripes rather than a stack of tiles.
+ *
+ * Counting is handled by grouping instead: in fours you read the column the way
+ * you read a tally — 4, 8, 12, 16, and the remainder — and the count is printed
+ * beside the name as well. An unbroken run of 17 identical bars is precisely
+ * the thing an eye cannot count, which is what the grouping is for.
  */
 export const EDGE_ON_TILE = {
   width: 34,
   height: 4,
-  /** Between tiles within a group of four. */
+  /** Between tiles within a group of four. Felt shows through, separating them. */
   gap: 1,
   /** Extra separation between groups, on top of `gap`. */
   groupGap: 4,
   groupSize: 4,
-  /** The ivory sliver of tile body showing beneath the back. */
-  faceEdge: 1,
 } as const;
 
 export type TileSizeName = keyof typeof TILE_SIZES;

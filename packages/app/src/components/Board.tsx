@@ -173,9 +173,7 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
               key={i}
               testID="concealed-sliver"
               style={[styles.edgeOnTile, endsGroup && styles.edgeOnGroupBreak]}
-            >
-              <View style={styles.edgeOnFace} />
-            </View>
+            />
           );
         })}
       </View>
@@ -229,7 +227,7 @@ export function OpponentPanel({
     sideways ? (
       <View style={styles.exposedBeside}>
         {flattened.map(({ tile, faceUp }, i) => (
-          <Tile key={`${tile}-${i}`} tile={tile} size="micro" faceUp={faceUp} />
+          <Tile key={`${tile}-${i}`} tile={tile} size="mini" faceUp={faceUp} />
         ))}
       </View>
     ) : (
@@ -369,15 +367,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', flexWrap: 'nowrap', gap: 1, alignItems: 'center',
     maxWidth: 24 * MINI_PITCH,
   },
-  // Side seats: three micro tiles wide, an EXPLICIT width rather than a
-  // maxWidth — the difference between wrapping and overflowing. Height is
-  // capped too, so a freak hand cannot push the grid down through the ponds.
+  // Side seats: three tiles wide, an EXPLICIT width rather than a maxWidth —
+  // that is the difference between wrapping and overflowing off the screen.
+  // Height is capped so a freak hand cannot push the grid down through the
+  // ponds; melds are laid out before flowers, so what a cap sacrifices is a
+  // flower rather than the meld that tells you what someone is collecting.
   exposedBeside: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 1,
-    width: 3 * (TILE_SIZES.micro + 1),
-    maxHeight: 7 * (tileHeight(TILE_SIZES.micro) + 1),
+    width: 3 * MINI_PITCH,
+    maxHeight: 5 * (tileHeight(TILE_SIZES.mini) + 1),
     alignContent: 'flex-start',
     overflow: 'hidden',
   },
@@ -390,16 +390,6 @@ const styles = StyleSheet.create({
     height: EDGE_ON_TILE.height,
     borderRadius: 1,
     backgroundColor: tokens.color.tileBack,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  // The ivory body under the green back, as you would see it from the side.
-  // Also what separates one sliver from the next at this size.
-  edgeOnFace: {
-    height: EDGE_ON_TILE.faceEdge,
-    // `tileFace`, not `tileFaceEdge`: the brighter pair is the one
-    // `contrast.test.ts` already holds to 2.31:1 against the back.
-    backgroundColor: tokens.color.tileFace,
   },
   edgeOnGroupBreak: { marginBottom: EDGE_ON_TILE.groupGap },
   // Corner block: wind and wall on one line, whose turn under it.

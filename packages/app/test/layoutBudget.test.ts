@@ -205,6 +205,31 @@ describe('landscape table fits a phone', () => {
     );
   });
 
+  it("a side opponent's exposed melds fit the rim beside their stack", () => {
+    // The rim exists at this width so exposed melds can be drawn at a size you
+    // can actually read. Squeezed narrower they had to shrink to 13px, which
+    // was illegible; drawn at full size in a narrow rim they ran 31px off the
+    // screen. Both failures were real, so both directions are budgeted.
+    const chrome = 2 * tokens.space.xs + 2 * 2;
+    const needed = EDGE_ON_TILE.width + 2 + 3 * (TILE_SIZES.mini + 1) + chrome;
+    assertAtMost(
+      needed, TABLE_ZONES.side,
+      `a side panel needs ${needed}px but the rim is ${TABLE_ZONES.side}px — ` +
+        'their melds would spill onto the felt or off the screen',
+    );
+    assertAtLeast(
+      TILE_SIZES.mini, 16,
+      'exposed melds on the rim are too small to identify, which is the whole ' +
+        'reason they are drawn at all',
+    );
+    // And the rim must not eat so much width that the ponds stop fitting.
+    assertAtLeast(
+      pondColumns(PHONE_LANDSCAPE.width), 3,
+      `the rim at ${TABLE_ZONES.side}px leaves room for only ` +
+        `${pondColumns(PHONE_LANDSCAPE.width)} discards per pond row`,
+    );
+  });
+
   it("a side opponent's tiles are grouped so they can be counted", () => {
     // The functional requirement, not decoration: you play differently against
     // someone holding 16 than someone holding 13, and an unbroken column of 17
@@ -220,13 +245,13 @@ describe('landscape table fits a phone', () => {
       'groups larger than five defeat the point — counting a group of six ' +
         'is the same problem as counting seventeen',
     );
-    // And the sliver has to be more than a bar: it carries a strip of the
-    // tile's ivory body, which is also what separates it from its neighbour.
-    assertAtLeast(EDGE_ON_TILE.faceEdge, 1, 'the tile face strip has vanished');
-    assertAtMost(
-      EDGE_ON_TILE.faceEdge, EDGE_ON_TILE.height / 2,
-      'the ivory strip is half the sliver or more, so it reads as an ivory ' +
-        'bar rather than a tile back with its body showing',
+    // Felt showing through the gap is what separates one sliver from the next.
+    // The slivers carry no marking of their own: tiles pushed flush together
+    // do not show their ivory bodies, and a strip of one on each read as a
+    // stack of stripes rather than a stack of tiles.
+    assertAtLeast(
+      EDGE_ON_TILE.gap, 1,
+      'with no gap the slivers merge into one solid block',
     );
   });
 
