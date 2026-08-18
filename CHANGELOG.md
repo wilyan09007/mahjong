@@ -4,6 +4,27 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.7.0] - 2026-08-18
+
+### Changed
+
+- **A side player's tiles are dealt into two columns instead of one.** Stacked
+  in a single column, 17 tiles could only afford an 11px step — under a quarter
+  of each tile — and however they were drawn the result looked cramped. Split
+  across two columns the tallest runs to 9, which halves the height and buys
+  back the room: **just under half of every tile now shows** instead of a
+  quarter.
+- The group break grew from 3px to 6px to keep pace. At the old step a 3px
+  break marked a group; at this one it had stopped being visible as anything.
+- The rim widens 100 -> 112 to hold the second column.
+
+### Fixed
+
+- The height budget did not count the 1px top edge each tile draws, which is a
+  border and so adds to its box. Over a 9-tile column that was 9px unaccounted
+  for, leaving 2px of rail margin where the arithmetic claimed 8. The budget
+  counts it now, and the step was trimmed to restore the margin.
+
 ## [0.2.6.0] - 2026-08-17
 
 ### Changed

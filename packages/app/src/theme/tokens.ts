@@ -116,7 +116,7 @@ export const TABLE_ZONES = {
    * the strongest read you get on another player. Wider than necessary is not
    * free either: every pixel here is taken off the playing surface.
    */
-  side: 100,
+  side: 112,
   /**
    * Where the side seats' rails begin, measured from the top of the screen.
    *
@@ -162,21 +162,32 @@ export const SIDE_STACK = {
   /**
    * How much of each tile shows before the next one overlaps it.
    *
-   * The left and right seats hold REAL tile backs, the same `mini` size the
-   * seat across the table uses — they simply overlap, the way a fanned hand of
-   * cards does. Earlier versions drew abstract bars instead, which read as
-   * slits rather than tiles.
-   *
-   * Overlapping is not a compromise, it is the only arrangement that fits: 17
-   * mini tiles laid out clear of one another are 434px tall, and the rail is
-   * about 170. At a 6px step the same 17 tiles come to 133px, and the nearest
-   * tile still shows in full, so the stack reads as tiles rather than stripes.
+   * 13 of a mini tile's 24.5 — just over half of every tile is visible. In a
+   * single column the same 17 tiles only afforded a 6px step, under a quarter
+   * of each tile, and the stack looked cramped however it was drawn. Splitting
+   * into two columns halves the height and buys back that room.
    */
-  step: 6,
-  /** Extra separation between groups of four, so the stack can be counted. */
-  groupGap: 3,
+  step: 11,
+  /**
+   * Two columns, not one. A player holds 17 tiles at most, so each column runs
+   * to 9 — short enough that the step above fits the rail with margin.
+   */
+  columns: 2,
+  /**
+   * Extra separation between groups of four, so a column can be counted. Scales
+   * with the step: at a 12px step a 3px break was no longer visible as one.
+   */
+  groupGap: 6,
   groupSize: 4,
 } as const;
+
+/** Tiles per column when `count` are split across `SIDE_STACK.columns`. */
+export function sideStackColumns(count: number): number[] {
+  const per = Math.ceil(count / SIDE_STACK.columns);
+  const out: number[] = [];
+  for (let left = count; left > 0; left -= per) out.push(Math.min(per, left));
+  return out;
+}
 
 export type TileSizeName = keyof typeof TILE_SIZES;
 

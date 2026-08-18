@@ -1,7 +1,8 @@
 import { assertAtMost, assertAtLeast, assertThat } from './support';
 import { handTileWidth, pondColumns } from '../src/components/Board';
 import {
-  COMPACT_ROW, PHONE_LANDSCAPE, SIDE_STACK, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+  COMPACT_ROW, PHONE_LANDSCAPE, SIDE_STACK, TABLE_ZONES, TILE_SIZES,
+  sideStackColumns, tileHeight, tokens,
 } from '../src/theme/tokens';
 
 /**
@@ -22,13 +23,23 @@ import {
 /** A button as `Controls.tsx` renders it. */
 const BUTTON = tokens.hitSlop + 12;
 
-/** A side seat's overlapping stack: the near tile in full, then a step each. */
+/**
+ * A side seat's overlapping stack: the near tile of each column in full, then a
+ * step per tile behind it. Height is set by the TALLEST column.
+ */
 function sideStackHeight(tiles: number): number {
-  const breaks = Math.floor((tiles - 1) / SIDE_STACK.groupSize);
-  return tileHeight(TILE_SIZES.mini)
-    + (tiles - 1) * SIDE_STACK.step
+  const tallest = Math.max(...sideStackColumns(tiles));
+  const breaks = Math.floor((tallest - 1) / SIDE_STACK.groupSize);
+  // +1 per tile for the top-edge line, which is drawn as a border and so adds
+  // to each tile's box. Leaving it out of this sum cost 7px of a 2px margin.
+  return tileHeight(TILE_SIZES.mini) + 1
+    + (tallest - 1) * (SIDE_STACK.step + 1)
     + breaks * SIDE_STACK.groupGap;
 }
+
+/** Width of the stack itself: one mini tile per column, plus a 1px gap. */
+const SIDE_STACK_WIDTH =
+  SIDE_STACK.columns * TILE_SIZES.mini + (SIDE_STACK.columns - 1);
 
 describe('landscape table fits a phone', () => {
   it('the fixed zones leave usable room for the middle of the table', () => {
@@ -223,7 +234,7 @@ describe('landscape table fits a phone', () => {
     // was illegible; drawn at full size in a narrow rim they ran 31px off the
     // screen. Both failures were real, so both directions are budgeted.
     const chrome = 2 * tokens.space.xs + 2 * 2;
-    const needed = TILE_SIZES.mini + 2 + 3 * (TILE_SIZES.mini + 1) + chrome;
+    const needed = SIDE_STACK_WIDTH + 2 + 3 * (TILE_SIZES.mini + 1) + chrome;
     assertAtMost(
       needed, TABLE_ZONES.side,
       `a side panel needs ${needed}px but the rim is ${TABLE_ZONES.side}px — ` +
@@ -254,10 +265,22 @@ describe('landscape table fits a phone', () => {
         'the rail — the overlap is no longer load-bearing and could be dropped',
     );
 
-    // Enough of each tile has to show to read as a tile rather than a stripe.
+    // Over a third of each tile must show, or the stack reads as stripes. This
+    // is the whole reason the hand is split across two columns: in one column
+    // 17 tiles only afford a 6px step, under a quarter of a tile.
     assertAtLeast(
-      SIDE_STACK.step, 5,
-      `a ${SIDE_STACK.step}px step shows too little of each tile to read as one`,
+      SIDE_STACK.step, tileHeight(TILE_SIZES.mini) / 3,
+      `a ${SIDE_STACK.step}px step shows only ` +
+        `${Math.round(100 * SIDE_STACK.step / tileHeight(TILE_SIZES.mini))}% of ` +
+        'each tile, which reads as a stripe rather than a tile',
+    );
+    // And the split has to be what pays for it — one column must NOT fit.
+    const oneColumn = tileHeight(TILE_SIZES.mini) + 16 * SIDE_STACK.step
+      + 4 * SIDE_STACK.groupGap + 16 + 2 * tokens.space.xs + 2 * 2;
+    assertAtLeast(
+      oneColumn, PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom,
+      `all 17 in one column would be ${Math.round(oneColumn)}px and still fit, ` +
+        'so splitting into columns is no longer load-bearing',
     );
     // The group break must be clearly wider than the step, or it does nothing.
     assertAtLeast(

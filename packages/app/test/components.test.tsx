@@ -6,6 +6,7 @@ import { TileFace } from '../src/tiles/TileFace';
 import { Tile } from '../src/tiles/Tile';
 import { ActionBar } from '../src/components/Controls';
 import { exposedTiles, HandRow, OpponentPanel } from '../src/components/Board';
+import { sideStackColumns } from '../src/theme/tokens';
 import { actionBarModel } from '../src/state/selectors';
 import { FLOWERS, NON_FLOWER_KINDS, newHand, viewFor } from '@mahjong/engine';
 import type { Action, TileKind } from '@mahjong/engine';
@@ -329,15 +330,20 @@ describe('OpponentPanel — a side seat you have to count', () => {
     }
   });
 
-  it('breaks the column into fours, and never trails a break off the end', async () => {
-    // 16 tiles is 4|4|4|4 — three breaks, not four. A trailing break leaves a
-    // floating gap under the stack that reads as a seventeenth tile.
-    expect((await slivers(16)).breaks).toBe(3);
-    // 13 after a pung is 4|4|4|1: the remainder still gets its own group.
-    expect((await slivers(13)).breaks).toBe(3);
-    expect((await slivers(8)).breaks).toBe(1);
-    expect((await slivers(4)).breaks).toBe(0);
-    expect((await slivers(1)).breaks).toBe(0);
+  it('breaks each column into fours, and never trails a break off the end', async () => {
+    // A trailing break leaves a floating gap under a column that reads as one
+    // extra tile, so a column of exactly four must have no break at all.
+    const expected = (n: number): number => sideStackColumns(n)
+      .reduce((sum, size) => sum + Math.floor((size - 1) / 4), 0);
+
+    for (const n of [17, 16, 13, 8, 4, 1]) {
+      const { breaks } = await slivers(n);
+      assertThat(
+        breaks === expected(n),
+        `a hand of ${n} across ${sideStackColumns(n).join('+')} drew ${breaks} ` +
+          `group breaks, expected ${expected(n)}`,
+      );
+    }
   });
 
   it('overlaps the tiles rather than spacing them out', async () => {

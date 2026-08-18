@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
 import {
-  COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+  COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, sideStackColumns, tileHeight, tokens,
 } from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
@@ -172,23 +172,27 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
   if (isVerticalEdge(edge)) {
     return (
       <View style={styles.sideStack}>
-        {Array.from({ length: count }, (_, i) => {
-          const startsGroup = i > 0 && i % SIDE_STACK.groupSize === 0;
-          return (
-            <View
-              key={i}
-              testID="concealed-sliver"
-              style={[
-                styles.sideStackTile,
-                i === 0 ? null : {
-                  marginTop: -(SIDE_OVERLAP - (startsGroup ? SIDE_STACK.groupGap : 0)),
-                },
-              ]}
-            >
-              <Tile tile="1w" size="mini" faceUp={false} />
-            </View>
-          );
-        })}
+        {sideStackColumns(count).map((inColumn, c) => (
+          <View key={c}>
+            {Array.from({ length: inColumn }, (_, i) => {
+              const startsGroup = i > 0 && i % SIDE_STACK.groupSize === 0;
+              return (
+                <View
+                  key={i}
+                  testID="concealed-sliver"
+                  style={[
+                    styles.sideStackTile,
+                    i === 0 ? null : {
+                      marginTop: -(SIDE_OVERLAP - (startsGroup ? SIDE_STACK.groupGap : 0)),
+                    },
+                  ]}
+                >
+                  <Tile tile="1w" size="mini" faceUp={false} />
+                </View>
+              );
+            })}
+          </View>
+        ))}
       </View>
     );
   }
@@ -396,8 +400,10 @@ const styles = StyleSheet.create({
   },
   sideBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
   sideBodyMirrored: { flexDirection: 'row-reverse' },
-  // A side seat's hand: overlapping tile backs, near tile fully visible.
-  sideStack: { marginTop: 2, alignItems: 'center' },
+  // A side seat's hand: overlapping tile backs in two columns, near tile of
+  // each column fully visible. Two columns rather than one so each tile can
+  // show half of itself instead of a quarter.
+  sideStack: { marginTop: 2, flexDirection: 'row', gap: 1, alignItems: 'flex-start' },
   // The line along each tile's top edge is what makes the overlap legible.
   // Without it, green backs overlapping green backs draw one solid column —
   // the tiles are all there, but nothing shows where one ends and the next
