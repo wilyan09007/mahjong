@@ -30,16 +30,19 @@ const BUTTON = tokens.hitSlop + 12;
 function sideStackHeight(tiles: number): number {
   const tallest = Math.max(...sideStackColumns(tiles));
   const breaks = Math.floor((tallest - 1) / SIDE_STACK.groupSize);
-  // +1 per tile for the top-edge line, which is drawn as a border and so adds
-  // to each tile's box. Leaving it out of this sum cost 7px of a 2px margin.
-  return tileHeight(TILE_SIZES.mini) + 1
-    + (tallest - 1) * (SIDE_STACK.step + 1)
+  return tallest * sideTileHeight()
+    + (tallest - 1) * SIDE_STACK.gap
     + breaks * SIDE_STACK.groupGap;
 }
 
-/** Width of the stack itself: one mini tile per column, plus a 1px gap. */
-const SIDE_STACK_WIDTH =
-  SIDE_STACK.columns * TILE_SIZES.mini + (SIDE_STACK.columns - 1);
+/** A laid-down tile is as tall as an upright one is wide: the ratio inverts. */
+function sideTileHeight(): number {
+  return SIDE_STACK.tileWidth * tokens.tile.aspect;
+}
+
+/** Width of the stack itself: one laid-down tile per column, plus the gaps. */
+const SIDE_STACK_WIDTH = SIDE_STACK.columns * SIDE_STACK.tileWidth
+  + (SIDE_STACK.columns - 1) * SIDE_STACK.gap;
 
 describe('landscape table fits a phone', () => {
   it('the fixed zones leave usable room for the middle of the table', () => {
@@ -253,40 +256,34 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it("a side opponent's tiles are real tiles, overlapping, grouped in fours", () => {
-    // They are the SAME tile the seat across the table shows, just overlapping.
-    // Laid out clear of one another they would be 434px in a ~170px rail, so
-    // this is the only arrangement that fits — and it is what a held stack
-    // looks like anyway.
-    const spread = 17 * (tileHeight(TILE_SIZES.mini) + 1);
+  it("a side opponent's tiles are laid down, whole, and grouped in fours", () => {
+    // Laid down, not upright: those players' tiles face them, so from your seat
+    // they are turned ninety degrees.
     assertAtLeast(
-      spread, 2 * (PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom),
-      `17 tiles laid out clear would be ${Math.round(spread)}px, which now fits ` +
-        'the rail — the overlap is no longer load-bearing and could be dropped',
+      SIDE_STACK.tileWidth, sideTileHeight(),
+      'a side seat’s tiles are taller than they are wide, so they are drawn ' +
+        'standing up — from your seat those tiles are lying down',
     );
 
-    // Over a third of each tile must show, or the stack reads as stripes. This
-    // is the whole reason the hand is split across two columns: in one column
-    // 17 tiles only afford a 6px step, under a quarter of a tile.
+    // Nothing overlaps: every tile is drawn whole with felt around it. That is
+    // only possible BECAUSE they are laid down — upright they are 24.5px each
+    // and 9 of them would not fit the rail.
+    const upright = 9 * tileHeight(TILE_SIZES.mini) + 8 * SIDE_STACK.gap
+      + 2 * SIDE_STACK.groupGap;
+    const budget = PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom
+      - 16 - 2 * tokens.space.xs - 2 * 2;
     assertAtLeast(
-      SIDE_STACK.step, tileHeight(TILE_SIZES.mini) / 3,
-      `a ${SIDE_STACK.step}px step shows only ` +
-        `${Math.round(100 * SIDE_STACK.step / tileHeight(TILE_SIZES.mini))}% of ` +
-        'each tile, which reads as a stripe rather than a tile',
+      upright, budget,
+      `a column of 9 upright tiles is ${Math.round(upright)}px and now fits the ` +
+        `${Math.round(budget)}px budget, so laying them down is no longer what ` +
+        'makes them fit whole',
     );
-    // And the split has to be what pays for it — one column must NOT fit.
-    const oneColumn = tileHeight(TILE_SIZES.mini) + 16 * SIDE_STACK.step
-      + 4 * SIDE_STACK.groupGap + 16 + 2 * tokens.space.xs + 2 * 2;
-    assertAtLeast(
-      oneColumn, PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom,
-      `all 17 in one column would be ${Math.round(oneColumn)}px and still fit, ` +
-        'so splitting into columns is no longer load-bearing',
+    assertAtMost(
+      sideStackHeight(17), budget,
+      `a column of laid-down tiles is ${Math.round(sideStackHeight(17))}px in a ` +
+        `${Math.round(budget)}px budget`,
     );
-    // The group break must be clearly wider than the step, or it does nothing.
-    assertAtLeast(
-      SIDE_STACK.step + SIDE_STACK.groupGap, SIDE_STACK.step * 1.4,
-      'the break between groups is not visibly wider than the step within one',
-    );
+
     assertAtMost(
       SIDE_STACK.groupSize, 5,
       'groups larger than five defeat the point — counting a group of six ' +

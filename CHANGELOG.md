@@ -4,6 +4,33 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.8.0] - 2026-08-18
+
+### Changed
+
+- **The left and right players' tiles are laid DOWN, and nothing overlaps.**
+  Those players' tiles face them, so from your seat they are turned ninety
+  degrees; drawing them upright was drawing them from your own point of view
+  rather than theirs. The seat across the table still stands upright, because
+  their tiles really do face you.
+
+  Laying them down is also what removed the overlap. An upright mini tile is
+  24.5px, and nine of them never fit the rail — every previous version hid part
+  of each tile behind the next to cope. Laid down the same tile is 13px, so two
+  columns of nine come to 133px in a 142px budget and **every tile is drawn
+  whole, with felt around it**.
+- `Tile` gains a `landscape` prop. Only face-down backs use it, which have no
+  glyph that would have to rotate with them.
+
+### Added
+
+- A render test that a side seat's tiles come out wider than tall. The obvious
+  version of this test — comparing the tokens — passed whether the component
+  laid the tiles down or not; this one reads the box that actually got drawn,
+  and was confirmed to fail when the `landscape` prop is removed.
+- A render test that no tile carries a negative margin, i.e. that the stack has
+  not quietly gone back to overlapping.
+
 ## [0.2.7.0] - 2026-08-18
 
 ### Changed

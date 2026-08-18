@@ -346,10 +346,36 @@ describe('OpponentPanel — a side seat you have to count', () => {
     }
   });
 
-  it('overlaps the tiles rather than spacing them out', async () => {
-    // The whole reason these fit: 17 mini tiles laid out clear of one another
-    // are 434px, and the rail is about 170. If the margin ever goes positive
-    // the stack has stopped overlapping and will run off both ends.
+  it('lays the tiles down, wider than tall', async () => {
+    // A side player's tiles face THEM, so from your seat they are turned
+    // ninety degrees. Asserting this on the tokens alone proved nothing: the
+    // component can simply forget to pass `landscape` and the numbers still
+    // look right. This reads the box that actually got drawn.
+    await mounted(
+      <OpponentPanel
+        opponent={{ ...sideOpponent, handCount: 8 }}
+        edge="left" isTurn={false} connected name="Bot 4"
+      />,
+      (screen) => {
+        const tiles = screen.queryAllByTestId('side-tile');
+        assertThat(tiles.length === 8, `drew ${tiles.length} tiles for a hand of 8`);
+        for (const t of tiles) {
+          const flat = StyleSheet.flatten(t.props.style) as
+            { width?: number; height?: number };
+          assertThat(
+            (flat.width ?? 0) > (flat.height ?? 0),
+            `a side tile rendered ${flat.width}x${flat.height} — taller than it ` +
+              'is wide means it is standing up, not lying down',
+          );
+        }
+      },
+    );
+  });
+
+  it('draws every tile whole, with nothing overlapping', async () => {
+    // The point of laying the tiles down: at this height two columns of nine
+    // fit the rail outright, so no tile has to hide behind another. A negative
+    // margin here would mean the stack had gone back to overlapping.
     await mounted(
       <OpponentPanel
         opponent={{ ...sideOpponent, handCount: 17 }}
@@ -362,9 +388,9 @@ describe('OpponentPanel — a side seat you have to count', () => {
           return flat?.marginTop ?? 0;
         });
         assertThat(
-          margins.every((m) => m <= 0),
-          `a tile has a positive top margin (${Math.max(...margins)}px), so the ` +
-            'stack is spacing tiles apart instead of overlapping them',
+          margins.every((m) => m >= 0),
+          `a tile has a negative top margin (${Math.min(...margins)}px), so the ` +
+            'stack is hiding tiles behind one another again',
         );
       },
     );

@@ -152,20 +152,16 @@ export function exposedTiles(
   ];
 }
 
-/** How far each tile in a side stack is pulled up over the one before it. */
-const SIDE_OVERLAP = tileHeight(TILE_SIZES.mini) - SIDE_STACK.step;
-
 /**
  * An opponent's concealed tiles: real tile backs at every seat.
  *
- * The seat across the table lays them out in a row. The left and right seats
- * hold the same tiles, overlapping down a column like a fanned hand — 17 of
- * them laid out clear of each other would be 434px in a rail of about 170, so
- * overlapping is the only arrangement that fits. It is also what a held stack
- * actually looks like: you see the near tile whole and the top edge of every
- * one behind it.
+ * The seat across the table faces you, so their tiles stand upright in a row.
+ * The left and right seats' tiles face THEM — from where you sit those are
+ * turned ninety degrees, so they are drawn laid down, in two columns, with felt
+ * between every one. Nothing overlaps: two columns of nine laid-down tiles fit
+ * the rail whole, which upright tiles never could.
  *
- * Grouped in fours regardless, because a run of seventeen identical edges is
+ * Grouped in fours regardless, because a run of seventeen identical backs is
  * the one thing an eye cannot count.
  */
 function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.ReactElement {
@@ -173,24 +169,25 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
     return (
       <View style={styles.sideStack}>
         {sideStackColumns(count).map((inColumn, c) => (
-          <View key={c}>
-            {Array.from({ length: inColumn }, (_, i) => {
-              const startsGroup = i > 0 && i % SIDE_STACK.groupSize === 0;
-              return (
-                <View
-                  key={i}
-                  testID="concealed-sliver"
-                  style={[
-                    styles.sideStackTile,
-                    i === 0 ? null : {
-                      marginTop: -(SIDE_OVERLAP - (startsGroup ? SIDE_STACK.groupGap : 0)),
-                    },
-                  ]}
-                >
-                  <Tile tile="1w" size="mini" faceUp={false} />
-                </View>
-              );
-            })}
+          <View key={c} style={styles.sideStackColumn}>
+            {Array.from({ length: inColumn }, (_, i) => (
+              <View
+                key={i}
+                testID="concealed-sliver"
+                style={i > 0 && i % SIDE_STACK.groupSize === 0
+                  ? styles.sideStackGroupBreak
+                  : null}
+              >
+                <Tile
+                  tile="1w"
+                  size="mini"
+                  width={SIDE_STACK.tileWidth}
+                  landscape
+                  faceUp={false}
+                  testID="side-tile"
+                />
+              </View>
+            ))}
           </View>
         ))}
       </View>
@@ -400,21 +397,15 @@ const styles = StyleSheet.create({
   },
   sideBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
   sideBodyMirrored: { flexDirection: 'row-reverse' },
-  // A side seat's hand: overlapping tile backs in two columns, near tile of
-  // each column fully visible. Two columns rather than one so each tile can
-  // show half of itself instead of a quarter.
-  sideStack: { marginTop: 2, flexDirection: 'row', gap: 1, alignItems: 'flex-start' },
-  // The line along each tile's top edge is what makes the overlap legible.
-  // Without it, green backs overlapping green backs draw one solid column —
-  // the tiles are all there, but nothing shows where one ends and the next
-  // begins. It follows the tile's own corner radius so it reads as the tile's
-  // edge catching shadow, not as a rule drawn across it.
-  sideStackTile: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.35)',
-    borderTopLeftRadius: tokens.tile.radius,
-    borderTopRightRadius: tokens.tile.radius,
+  // A side seat's hand: laid-down tile backs, two columns, none touching.
+  sideStack: {
+    marginTop: 2,
+    flexDirection: 'row',
+    gap: SIDE_STACK.gap,
+    alignItems: 'flex-start',
   },
+  sideStackColumn: { gap: SIDE_STACK.gap },
+  sideStackGroupBreak: { marginTop: SIDE_STACK.groupGap },
   // Corner block: wind and wall on one line, whose turn under it.
   status: { alignItems: 'flex-start', gap: 1 },
   statusHead: { flexDirection: 'row', alignItems: 'baseline', gap: tokens.space.xs },

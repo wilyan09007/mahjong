@@ -149,35 +149,27 @@ export const TABLE_ZONES = {
 /**
  * How the left and right seats' concealed hands are drawn.
  *
- * Real tile backs, the same `mini` size the seat across the table uses, laid
- * down a column and OVERLAPPING like a fanned hand of cards. Earlier versions
- * drew abstract bars here; they read as slits rather than tiles.
+ * Real tile backs, LAID DOWN — wider than tall. Those players' tiles face them,
+ * so from your seat they are turned ninety degrees; upright backs were drawn
+ * from your own point of view rather than theirs.
  *
- * The overlap is not a stylistic choice, it is the only thing that fits: 17
- * mini tiles laid out clear of one another are 434px tall and the rail is about
- * 170. Overlapping, the same 17 come to 133px, the nearest tile still shows in
- * full, and every tile behind it shows its top edge.
+ * Nothing overlaps. Two columns of nine at this size come to ~133px in a ~142px
+ * budget, so every tile can be drawn whole with clear felt between it and the
+ * next. Earlier versions overlapped precisely because they kept the tiles
+ * upright, which is 24.5px each and never fit.
  */
 export const SIDE_STACK = {
-  /**
-   * How much of each tile shows before the next one overlaps it.
-   *
-   * 13 of a mini tile's 24.5 — just over half of every tile is visible. In a
-   * single column the same 17 tiles only afforded a 6px step, under a quarter
-   * of each tile, and the stack looked cramped however it was drawn. Splitting
-   * into two columns halves the height and buys back that room.
-   */
-  step: 11,
+  /** A laid-down tile's width; its height follows from the tile aspect. */
+  tileWidth: 18,
+  /** Felt between tiles. They are separate objects, so they never touch. */
+  gap: 1,
+  /** Extra separation between groups of four, so a column can be counted. */
+  groupGap: 3,
   /**
    * Two columns, not one. A player holds 17 tiles at most, so each column runs
-   * to 9 — short enough that the step above fits the rail with margin.
+   * to 9 — short enough to fit the rail whole, without overlapping.
    */
   columns: 2,
-  /**
-   * Extra separation between groups of four, so a column can be counted. Scales
-   * with the step: at a 12px step a 3px break was no longer visible as one.
-   */
-  groupGap: 6,
   groupSize: 4,
 } as const;
 

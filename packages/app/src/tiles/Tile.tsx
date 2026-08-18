@@ -33,6 +33,14 @@ export interface TileProps {
   /** Explicit width, overriding `size`. Used by the hand, which shrinks its
    *  tiles to whatever the screen leaves beside the action stack. */
   width?: number;
+  /**
+   * Lay the tile down, wider than tall.
+   *
+   * The left and right players' tiles face THEM, so from your seat they are
+   * turned ninety degrees. Only ever used for face-down backs, which have no
+   * glyph to rotate with them.
+   */
+  landscape?: boolean;
   disabled?: boolean;
   onPress?: (tile: TileKind) => void;
   testID?: string;
@@ -45,12 +53,14 @@ export function Tile({
   selected = false,
   lift = true,
   width: widthOverride,
+  landscape = false,
   disabled = false,
   onPress,
   testID,
 }: TileProps): React.ReactElement {
   const width = widthOverride ?? TILE_SIZES[size];
-  const height = tileHeight(width);
+  // Upright a tile is taller than wide; laid down the ratio simply inverts.
+  const height = landscape ? width * tokens.tile.aspect : tileHeight(width);
   const edge = Math.max(3, height * 0.08);
 
   const body = (
