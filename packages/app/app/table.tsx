@@ -113,22 +113,33 @@ export default function TableScreen(): React.ReactElement {
           ))}
       </View>
 
-      <View style={styles.middleRow}>
-        <View style={styles.sideColumn}>
+      {/* The side seats ride their own full-height rails rather than sitting in
+          the middle band. The band is capped by the top seat's zone, but that
+          zone is centred across the table and its corners are dead space — the
+          room the left and right players' tiles needed was sitting there
+          unused. `box-none` so an empty rail never eats a tap. */}
+      {(['left', 'right'] as const).map((side) => (
+        <View
+          key={side}
+          style={[styles.rail, side === 'left' ? styles.railLeft : styles.railRight]}
+          pointerEvents="box-none"
+        >
           {view.opponents
-            .filter((o) => edgeFor(view.seat, o.seat) === 'left')
+            .filter((o) => edgeFor(view.seat, o.seat) === side)
             .map((o) => (
               <OpponentPanel
                 key={o.seat}
                 opponent={o}
-                edge="left"
+                edge={side}
                 isTurn={view.turn === o.seat}
                 connected={seatStatus[o.seat] ?? true}
                 name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
               />
             ))}
         </View>
+      ))}
 
+      <View style={styles.middleRow}>
         <View style={styles.centerColumn}>
           <LastDiscard view={view} />
           {/* Four ponds side by side rather than a scrolling stack — the whole
@@ -142,20 +153,6 @@ export default function TableScreen(): React.ReactElement {
           </View>
         </View>
 
-        <View style={styles.sideColumn}>
-          {view.opponents
-            .filter((o) => edgeFor(view.seat, o.seat) === 'right')
-            .map((o) => (
-              <OpponentPanel
-                key={o.seat}
-                opponent={o}
-                edge="right"
-                isTurn={view.turn === o.seat}
-                connected={seatStatus[o.seat] ?? true}
-                name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
-              />
-            ))}
-        </View>
       </View>
 
       {/* Me */}
@@ -301,8 +298,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  middleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 0 },
-  sideColumn: { width: TABLE_ZONES.side, justifyContent: 'center', alignItems: 'center' },
+  // Padded by the rails' width so the ponds sit exactly where they did when
+  // the side seats were columns in this row.
+  middleRow: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 0,
+    paddingHorizontal: TABLE_ZONES.side,
+  },
+  rail: {
+    position: 'absolute',
+    top: TABLE_ZONES.railTop,
+    bottom: TABLE_ZONES.bottom,
+    width: TABLE_ZONES.side,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  railLeft: { left: tokens.space.s },
+  railRight: { right: tokens.space.s },
   centerColumn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
   ponds: {
     flexDirection: 'row',

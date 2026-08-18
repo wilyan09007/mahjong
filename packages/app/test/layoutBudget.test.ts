@@ -1,7 +1,7 @@
 import { assertAtMost, assertAtLeast, assertThat } from './support';
 import { handTileWidth, pondColumns } from '../src/components/Board';
 import {
-  COMPACT_ROW, EDGE_ON_TILE, PHONE_LANDSCAPE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+  COMPACT_ROW, PHONE_LANDSCAPE, SIDE_STACK, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
 } from '../src/theme/tokens';
 
 /**
@@ -21,6 +21,14 @@ import {
 
 /** A button as `Controls.tsx` renders it. */
 const BUTTON = tokens.hitSlop + 12;
+
+/** A side seat's overlapping stack: the near tile in full, then a step each. */
+function sideStackHeight(tiles: number): number {
+  const breaks = Math.floor((tiles - 1) / SIDE_STACK.groupSize);
+  return tileHeight(TILE_SIZES.mini)
+    + (tiles - 1) * SIDE_STACK.step
+    + breaks * SIDE_STACK.groupGap;
+}
 
 describe('landscape table fits a phone', () => {
   it('the fixed zones leave usable room for the middle of the table', () => {
@@ -75,12 +83,15 @@ describe('landscape table fits a phone', () => {
     // the middle band the stack clipped the corner of the right player's panel
     // by 60x8px, covering the last of the very tile slivers that panel exists
     // to let you count. It now stops above the emote row instead.
-    const band = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
-    const panel = 17 * EDGE_ON_TILE.height + 16 * EDGE_ON_TILE.gap
-      + Math.floor(16 / EDGE_ON_TILE.groupSize) * EDGE_ON_TILE.groupGap
-      + 16 + 2 * tokens.space.xs + 2 * 2;
-    // Side panels are centred in the band, so this is where one ends.
-    const panelBottom = TABLE_ZONES.top + (band + panel) / 2;
+    const rail = PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom;
+    const panel = sideStackHeight(17) + 16 + 2 * tokens.space.xs + 2 * 2;
+    // Side panels are centred in their RAIL, so this is where one ends.
+    const panelBottom = TABLE_ZONES.railTop + (rail + panel) / 2;
+    assertAtMost(
+      panel, rail,
+      `a side panel is ${panel}px in a ${rail}px rail — its tiles would spill ` +
+        'past both ends of the rail',
+    );
 
     const stackTop = (buttons: number): number => PHONE_LANDSCAPE.height
       - TABLE_ZONES.emoteRow
@@ -177,15 +188,16 @@ describe('landscape table fits a phone', () => {
     }
   });
 
-  it("a side opponent's 17 concealed tiles fit the middle band", () => {
+  it("a side opponent's 17 concealed tiles fit their rail", () => {
     // THE constraint that forced the edge-on design. Rendered as full mini tile
-    // backs, 17 of them stack ~186px deep in a ~152px band, which is what drove
-    // the side panels straight through the middle of the table.
-    const middle = PHONE_LANDSCAPE.height - TABLE_ZONES.top - TABLE_ZONES.bottom;
-    // 17 slivers, 16 gaps, and an extra break after every fourth tile.
-    const stack = 17 * EDGE_ON_TILE.height
-      + 16 * EDGE_ON_TILE.gap
-      + Math.floor(16 / EDGE_ON_TILE.groupSize) * EDGE_ON_TILE.groupGap;
+    // backs, 17 of them stack ~186px deep, which is what drove the side panels
+    // straight through the middle of the table.
+    //
+    // Measured against the RAIL, not the middle band: the side seats are not
+    // confined to the band, because the top zone's corners are empty. That
+    // reclaimed height is what pays for a 6px sliver instead of a 4px slit.
+    const middle = PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom;
+    const stack = sideStackHeight(17);
     // Exposed tiles sit BESIDE the stack, so they cost width, not height — the
     // panel is as tall as the taller of the two, not their sum.
     const body = Math.max(stack, 4 * (tileHeight(TILE_SIZES.mini) + 1));
@@ -211,7 +223,7 @@ describe('landscape table fits a phone', () => {
     // was illegible; drawn at full size in a narrow rim they ran 31px off the
     // screen. Both failures were real, so both directions are budgeted.
     const chrome = 2 * tokens.space.xs + 2 * 2;
-    const needed = EDGE_ON_TILE.width + 2 + 3 * (TILE_SIZES.mini + 1) + chrome;
+    const needed = TILE_SIZES.mini + 2 + 3 * (TILE_SIZES.mini + 1) + chrome;
     assertAtMost(
       needed, TABLE_ZONES.side,
       `a side panel needs ${needed}px but the rim is ${TABLE_ZONES.side}px — ` +
@@ -230,28 +242,32 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it("a side opponent's tiles are grouped so they can be counted", () => {
-    // The functional requirement, not decoration: you play differently against
-    // someone holding 16 than someone holding 13, and an unbroken column of 17
-    // identical 4px bars cannot be counted at a glance. Groups must be visibly
-    // further apart than the tiles inside them, or the grouping does nothing.
+  it("a side opponent's tiles are real tiles, overlapping, grouped in fours", () => {
+    // They are the SAME tile the seat across the table shows, just overlapping.
+    // Laid out clear of one another they would be 434px in a ~170px rail, so
+    // this is the only arrangement that fits — and it is what a held stack
+    // looks like anyway.
+    const spread = 17 * (tileHeight(TILE_SIZES.mini) + 1);
     assertAtLeast(
-      EDGE_ON_TILE.groupGap, EDGE_ON_TILE.gap * 2,
-      `a ${EDGE_ON_TILE.groupGap}px break between groups against ` +
-        `${EDGE_ON_TILE.gap}px between tiles is not a visible group boundary`,
+      spread, 2 * (PHONE_LANDSCAPE.height - TABLE_ZONES.railTop - TABLE_ZONES.bottom),
+      `17 tiles laid out clear would be ${Math.round(spread)}px, which now fits ` +
+        'the rail — the overlap is no longer load-bearing and could be dropped',
+    );
+
+    // Enough of each tile has to show to read as a tile rather than a stripe.
+    assertAtLeast(
+      SIDE_STACK.step, 5,
+      `a ${SIDE_STACK.step}px step shows too little of each tile to read as one`,
+    );
+    // The group break must be clearly wider than the step, or it does nothing.
+    assertAtLeast(
+      SIDE_STACK.step + SIDE_STACK.groupGap, SIDE_STACK.step * 1.4,
+      'the break between groups is not visibly wider than the step within one',
     );
     assertAtMost(
-      EDGE_ON_TILE.groupSize, 5,
+      SIDE_STACK.groupSize, 5,
       'groups larger than five defeat the point — counting a group of six ' +
         'is the same problem as counting seventeen',
-    );
-    // Felt showing through the gap is what separates one sliver from the next.
-    // The slivers carry no marking of their own: tiles pushed flush together
-    // do not show their ivory bodies, and a strip of one on each read as a
-    // stack of stripes rather than a stack of tiles.
-    assertAtLeast(
-      EDGE_ON_TILE.gap, 1,
-      'with no gap the slivers merge into one solid block',
     );
   });
 

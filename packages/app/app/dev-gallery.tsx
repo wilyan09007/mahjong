@@ -41,23 +41,34 @@ export default function DevGalleryScreen(): React.ReactElement {
       {/* Opponent panels are hard to judge in a live game: you have to wait for
           a bot to claim before a single meld appears on the rim. Here they are
           on demand, at the width the table actually gives them. */}
-      <Text style={styles.heading}>Opponent panels — heavily exposed hand</Text>
-      <View style={styles.panels}>
-        {(['left', 'top', 'right'] as const).map((edge) => (
-          <View key={edge} style={styles.panelSlot}>
-            <View style={edge === 'top' ? undefined : styles.rimWidth}>
-              <OpponentPanel
-                opponent={SAMPLE_OPPONENT}
-                edge={edge}
-                isTurn={edge === 'left'}
-                connected
-                name={`${edge} seat`}
-              />
-            </View>
-            <Text style={styles.caption}>{edge}</Text>
+      {/* Two extremes, because they stress different dimensions: a full
+          concealed hand is the tallest the sliver stack ever gets, and a
+          heavily exposed one is the widest and tallest the meld grid gets. A
+          player never has both at once — melding is what shortens the stack. */}
+      {([
+        ['full concealed hand', FULL_HAND_OPPONENT],
+        ['heavily exposed hand', EXPOSED_OPPONENT],
+      ] as const).map(([label, sample]) => (
+        <React.Fragment key={label}>
+          <Text style={styles.heading}>Opponent panels — {label}</Text>
+          <View style={styles.panels}>
+            {(['left', 'top', 'right'] as const).map((edge) => (
+              <View key={edge} style={styles.panelSlot}>
+                <View style={edge === 'top' ? undefined : styles.rimWidth}>
+                  <OpponentPanel
+                    opponent={sample}
+                    edge={edge}
+                    isTurn={edge === 'left'}
+                    connected
+                    name={`${edge} seat`}
+                  />
+                </View>
+                <Text style={styles.caption}>{edge}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </React.Fragment>
+      ))}
     </ScrollView>
   );
 }
@@ -69,7 +80,7 @@ const SAMPLE_MELDS = [
 ] as unknown as React.ComponentProps<typeof MeldGroup>['melds'];
 
 /** Four melds and four flowers — about the worst a rim ever has to hold. */
-const SAMPLE_OPPONENT = {
+const EXPOSED_OPPONENT = {
   seat: 1,
   handCount: 5,
   melds: [
@@ -77,6 +88,15 @@ const SAMPLE_OPPONENT = {
     { type: 'pung', tiles: ['9b', '9b', '9b'], concealed: false, claimedFrom: 3 },
   ],
   flowers: ['f1', 'f2', 'f3', 'f4'],
+  discards: [],
+} as unknown as React.ComponentProps<typeof OpponentPanel>['opponent'];
+
+/** Nothing claimed yet: the tallest the sliver stack ever gets. */
+const FULL_HAND_OPPONENT = {
+  seat: 1,
+  handCount: 17,
+  melds: [],
+  flowers: [],
   discards: [],
 } as unknown as React.ComponentProps<typeof OpponentPanel>['opponent'];
 

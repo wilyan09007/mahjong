@@ -4,6 +4,40 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.6.0] - 2026-08-17
+
+### Changed
+
+- **The left and right players hold real tiles now, not slivers.** They are the
+  same `mini` tile backs the seat across the table uses; they simply overlap
+  down a column, the way a fanned hand of cards does, so you see the near tile
+  whole and the top edge of every one behind it.
+
+  Overlapping is not a compromise, it is the only arrangement that fits: 17 mini
+  tiles laid out clear of one another are 434px tall. Every previous attempt
+  drew an abstract bar instead — 4px, then 6px with a rounded end — and each one
+  still read as a slit rather than a tile.
+
+  Two things had to be found to make it work. The **side seats moved onto
+  full-height rails** rather than being confined to the middle band: that band
+  is capped by the top seat's zone, but that zone is centred across the table
+  and its corners were dead space. And each tile needed **a line along its top
+  edge** — green backs overlapping green backs draw one solid column, with every
+  tile present and nothing showing where one ends and the next begins.
+- The rim narrowed from 112px to 100px, since a stack of tile backs is 18px wide
+  where the old bar was 34. That width goes back to the playing surface.
+
+### Added
+
+- A second opponent-panel sample in `/dev-gallery`: a full concealed hand
+  alongside the heavily-exposed one. They stress opposite dimensions — a full
+  hand is the tallest the stack ever gets, a melded one the largest the exposed
+  grid gets, and a player never has both at once.
+- A render test that the stack really overlaps (every tile's top margin stays
+  negative), and a budget test asserting the un-overlapped layout would *not*
+  fit — so if the overlap ever stops being load-bearing, the test says so
+  instead of quietly passing.
+
 ## [0.2.5.1] - 2026-08-17
 
 ### Changed

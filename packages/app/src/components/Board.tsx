@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { Tile } from '../tiles/Tile';
 import {
-  COMPACT_ROW, EDGE_ON_TILE, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
+  COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, tileHeight, tokens,
 } from '../theme/tokens';
 import { strings } from '../strings';
 import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
@@ -152,28 +152,41 @@ export function exposedTiles(
   ];
 }
 
+/** How far each tile in a side stack is pulled up over the one before it. */
+const SIDE_OVERLAP = tileHeight(TILE_SIZES.mini) - SIDE_STACK.step;
+
 /**
- * An opponent's concealed tiles.
+ * An opponent's concealed tiles: real tile backs at every seat.
  *
- * Across the table you see tile BACKS; from the left or right you see the same
- * tiles EDGE-ON, as thin slivers. Rendering the sides as full tile backs is not
- * just less realistic — it is 16 tiles deep, roughly 200px of a 400px-tall
- * phone screen, which is what pushed the side panels straight through the
- * middle of the table.
+ * The seat across the table lays them out in a row. The left and right seats
+ * hold the same tiles, overlapping down a column like a fanned hand — 17 of
+ * them laid out clear of each other would be 434px in a rail of about 170, so
+ * overlapping is the only arrangement that fits. It is also what a held stack
+ * actually looks like: you see the near tile whole and the top edge of every
+ * one behind it.
+ *
+ * Grouped in fours regardless, because a run of seventeen identical edges is
+ * the one thing an eye cannot count.
  */
 function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.ReactElement {
   if (isVerticalEdge(edge)) {
     return (
-      <View style={styles.edgeOnStack}>
+      <View style={styles.sideStack}>
         {Array.from({ length: count }, (_, i) => {
-          // Break after every fourth tile, but never trailing the last one.
-          const endsGroup = (i + 1) % EDGE_ON_TILE.groupSize === 0 && i + 1 < count;
+          const startsGroup = i > 0 && i % SIDE_STACK.groupSize === 0;
           return (
             <View
               key={i}
               testID="concealed-sliver"
-              style={[styles.edgeOnTile, endsGroup && styles.edgeOnGroupBreak]}
-            />
+              style={[
+                styles.sideStackTile,
+                i === 0 ? null : {
+                  marginTop: -(SIDE_OVERLAP - (startsGroup ? SIDE_STACK.groupGap : 0)),
+                },
+              ]}
+            >
+              <Tile tile="1w" size="mini" faceUp={false} />
+            </View>
           );
         })}
       </View>
@@ -383,15 +396,19 @@ const styles = StyleSheet.create({
   },
   sideBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
   sideBodyMirrored: { flexDirection: 'row-reverse' },
-  // Tiles seen edge-on from a side seat: thin slivers, not full backs.
-  edgeOnStack: { marginTop: 2, gap: EDGE_ON_TILE.gap },
-  edgeOnTile: {
-    width: EDGE_ON_TILE.width,
-    height: EDGE_ON_TILE.height,
-    borderRadius: 1,
-    backgroundColor: tokens.color.tileBack,
+  // A side seat's hand: overlapping tile backs, near tile fully visible.
+  sideStack: { marginTop: 2, alignItems: 'center' },
+  // The line along each tile's top edge is what makes the overlap legible.
+  // Without it, green backs overlapping green backs draw one solid column —
+  // the tiles are all there, but nothing shows where one ends and the next
+  // begins. It follows the tile's own corner radius so it reads as the tile's
+  // edge catching shadow, not as a rule drawn across it.
+  sideStackTile: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.35)',
+    borderTopLeftRadius: tokens.tile.radius,
+    borderTopRightRadius: tokens.tile.radius,
   },
-  edgeOnGroupBreak: { marginBottom: EDGE_ON_TILE.groupGap },
   // Corner block: wind and wall on one line, whose turn under it.
   status: { alignItems: 'flex-start', gap: 1 },
   statusHead: { flexDirection: 'row', alignItems: 'baseline', gap: tokens.space.xs },

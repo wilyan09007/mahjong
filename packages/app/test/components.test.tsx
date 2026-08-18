@@ -293,7 +293,7 @@ describe('OpponentPanel — a side seat you have to count', () => {
   const me = viewFor(state, 0);
   const sideOpponent = me.opponents[0]!;
 
-  /** One sliver per tile, grouped in fours so the column can be counted. */
+  /** One tile back per concealed tile, grouped in fours so it can be counted. */
   async function slivers(handCount: number): Promise<{ total: number; breaks: number }> {
     return mounted(
       <OpponentPanel
@@ -305,10 +305,14 @@ describe('OpponentPanel — a side seat you have to count', () => {
       />,
       (screen) => {
         const found = screen.queryAllByTestId('concealed-sliver');
-        const breaks = found.filter((s) => {
-          const flat = StyleSheet.flatten(s.props.style) as { marginBottom?: number };
-          return (flat.marginBottom ?? 0) > 0;
-        }).length;
+        // Tiles overlap by a negative marginTop; a group break simply overlaps
+        // LESS, so a break is a top margin nearer zero than the usual step.
+        const margins = found.map((s) => {
+          const flat = StyleSheet.flatten(s.props.style) as { marginTop?: number } | undefined;
+          return flat?.marginTop;
+        }).filter((m): m is number => typeof m === 'number');
+        const tightest = Math.min(...margins, 0);
+        const breaks = margins.filter((m) => m > tightest).length;
         return { total: found.length, breaks };
       },
     );
@@ -334,6 +338,30 @@ describe('OpponentPanel — a side seat you have to count', () => {
     expect((await slivers(8)).breaks).toBe(1);
     expect((await slivers(4)).breaks).toBe(0);
     expect((await slivers(1)).breaks).toBe(0);
+  });
+
+  it('overlaps the tiles rather than spacing them out', async () => {
+    // The whole reason these fit: 17 mini tiles laid out clear of one another
+    // are 434px, and the rail is about 170. If the margin ever goes positive
+    // the stack has stopped overlapping and will run off both ends.
+    await mounted(
+      <OpponentPanel
+        opponent={{ ...sideOpponent, handCount: 17 }}
+        edge="left" isTurn={false} connected name="Bot 4"
+      />,
+      (screen) => {
+        const found = screen.queryAllByTestId('concealed-sliver');
+        const margins = found.map((s) => {
+          const flat = StyleSheet.flatten(s.props.style) as { marginTop?: number } | undefined;
+          return flat?.marginTop ?? 0;
+        });
+        assertThat(
+          margins.every((m) => m <= 0),
+          `a tile has a positive top margin (${Math.max(...margins)}px), so the ` +
+            'stack is spacing tiles apart instead of overlapping them',
+        );
+      },
+    );
   });
 });
 

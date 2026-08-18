@@ -110,12 +110,23 @@ export const TABLE_ZONES = {
    * surface is inset by this much, so their tiles rest on the rim rather than
    * floating in the middle of the table.
    *
-   * Wide enough for a sliver stack plus three `mini` tiles of exposed melds
-   * side by side. A narrower rim forced those melds down to a size you could
-   * not read, which is worse than spending the width — an exposed meld is the
-   * strongest read you get on another player.
+   * Wide enough for the concealed stack plus three `mini` tiles of exposed
+   * melds side by side. A narrower rim forced those melds down to a size you
+   * could not read, which is worse than spending the width — an exposed meld is
+   * the strongest read you get on another player. Wider than necessary is not
+   * free either: every pixel here is taken off the playing surface.
    */
-  side: 112,
+  side: 100,
+  /**
+   * Where the side seats' rails begin, measured from the top of the screen.
+   *
+   * The left and right players are NOT confined to the middle band. That band
+   * is bounded above by the top seat's zone — but that zone is centred on the
+   * seat across the table, and its corners are empty. The only thing out there
+   * is the status block, which this clears. Reclaiming those 14px is what let
+   * the side tiles grow from slits into something tile-shaped.
+   */
+  railTop: 50,
   /**
    * The emote row along the bottom. The action stack stops here rather than
    * running to the floor: anchored any lower it sat on the emotes, and
@@ -136,28 +147,34 @@ export const TABLE_ZONES = {
 } as const;
 
 /**
- * A side opponent's tile seen EDGE-ON — a thin sliver, which is both what it
- * looks like from their left or right and the only way 17 of them fit the
- * middle band of a phone screen. Rendered as full tile backs they need ~186px
- * of a ~152px zone, which is what pushed the side panels through the table.
+ * How the left and right seats' concealed hands are drawn.
  *
- * Plain tile backs, nothing else on them. An earlier version gave each sliver a
- * strip of ivory body along its bottom edge for the sake of looking tile-like;
- * tiles pushed flush together do not show their bodies that way, and the result
- * read as a stack of stripes rather than a stack of tiles.
+ * Real tile backs, the same `mini` size the seat across the table uses, laid
+ * down a column and OVERLAPPING like a fanned hand of cards. Earlier versions
+ * drew abstract bars here; they read as slits rather than tiles.
  *
- * Counting is handled by grouping instead: in fours you read the column the way
- * you read a tally — 4, 8, 12, 16, and the remainder — and the count is printed
- * beside the name as well. An unbroken run of 17 identical bars is precisely
- * the thing an eye cannot count, which is what the grouping is for.
+ * The overlap is not a stylistic choice, it is the only thing that fits: 17
+ * mini tiles laid out clear of one another are 434px tall and the rail is about
+ * 170. Overlapping, the same 17 come to 133px, the nearest tile still shows in
+ * full, and every tile behind it shows its top edge.
  */
-export const EDGE_ON_TILE = {
-  width: 34,
-  height: 4,
-  /** Between tiles within a group of four. Felt shows through, separating them. */
-  gap: 1,
-  /** Extra separation between groups, on top of `gap`. */
-  groupGap: 4,
+export const SIDE_STACK = {
+  /**
+   * How much of each tile shows before the next one overlaps it.
+   *
+   * The left and right seats hold REAL tile backs, the same `mini` size the
+   * seat across the table uses — they simply overlap, the way a fanned hand of
+   * cards does. Earlier versions drew abstract bars instead, which read as
+   * slits rather than tiles.
+   *
+   * Overlapping is not a compromise, it is the only arrangement that fits: 17
+   * mini tiles laid out clear of one another are 434px tall, and the rail is
+   * about 170. At a 6px step the same 17 tiles come to 133px, and the nearest
+   * tile still shows in full, so the stack reads as tiles rather than stripes.
+   */
+  step: 6,
+  /** Extra separation between groups of four, so the stack can be counted. */
+  groupGap: 3,
   groupSize: 4,
 } as const;
 
