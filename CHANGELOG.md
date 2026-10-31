@@ -4,6 +4,33 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.9.0] - 2026-10-31
+
+### Changed
+
+- **Tiles are drawn with real artwork.** All 42 faces now come from samoheen's
+  Taiwan set, a public-domain (CC0) set drawn for Taiwanese mahjong: bold block
+  lettering, flowers 梅蘭菊竹 and seasons 春夏秋冬 with their own drawings, and a
+  bird on 一條. It was picked over a dozen other sets because it is the only one
+  that is free of license conditions AND complete for Taiwanese play; the
+  well-drawn alternatives are Japanese sets with no flower tiles.
+- `TileFace` renders a face's SVG through `SvgXml` instead of drawing circles,
+  sticks and font glyphs from coordinates.
+
+### Added
+
+- `assets/tiles/taiwan/`, the 42 source SVGs exactly as published, with their
+  license. `scripts/build-tile-art.mjs` turns them into
+  `src/tiles/art/taiwan.generated.ts`, keyed by engine tile code.
+- `test/tileArt.test.ts`: every tile has a face, each carries the face drawn for
+  it (checked against the artist's own title, so a mis-mapped file fails), and
+  no face uses masks, `<use>` or ids, where renderers disagree.
+
+### Removed
+
+- `src/tiles/tileData.ts` and its tests — the faces described as data were the
+  stand-in until real art arrived.
+
 ## [0.2.8.0] - 2026-08-18
 
 ### Changed
