@@ -253,9 +253,7 @@ describe('thinkingSeats', () => {
     expect(thinkingSeats(viewFor(opening, 0))).toEqual([]);
   });
 
-  it('during a claim window, shows everyone who might still claim — never who can', () => {
-    // Whoever can claim is hidden information, so every opponent except the
-    // one who threw the tile gets the dots, whether they hold an option or not.
+  it('shows no dots during a claim window — only ever on someone’s turn', () => {
     const rigged: GameState = newHand({ seed: 5, dealer: 0, dealerStreak: 0, roundWind: 'E' });
     const filler = [
       '1w', '4w', '7w', '2t', '5t', '8t', '3b', '6b', '9b',
@@ -267,7 +265,7 @@ describe('thinkingSeats', () => {
     rigged.players[3].hand = [...filler];
     const opened = applyAction(rigged, { type: 'discard', seat: 0, tile: '3w' });
     expect(opened.phase).toBe('awaiting-claims');
-    expect(thinkingSeats(viewFor(opened, 2)).sort()).toEqual([1, 3]);
-    expect(thinkingSeats(viewFor(opened, 0)).sort()).toEqual([1, 2, 3]);
+    expect(thinkingSeats(viewFor(opened, 2))).toEqual([]);
+    expect(thinkingSeats(viewFor(opened, 0))).toEqual([]);
   });
 });

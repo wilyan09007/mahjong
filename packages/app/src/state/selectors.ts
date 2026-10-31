@@ -158,18 +158,13 @@ export function actionButtons(model: ActionBarModel): ActionButtonSpec[] {
 }
 
 /**
- * Opponents to show as deciding, for the "thinking" dots by their names.
- *
- * On someone's turn, that player. During a claim window, every opponent but
- * the one who threw the tile: who actually holds a claim is hidden
- * information — the server never sends another seat's options — so the dots
- * say "might be deciding", never "can claim".
+ * Opponents to show as deciding, for the "thinking" dots by their names: the
+ * player whose turn it is, and only them. Claim windows get no dots — they
+ * last a moment, and dots on everyone who might claim read as noise.
  */
 export function thinkingSeats(view: PlayerView): Seat[] {
-  const others = view.opponents.map((o) => o.seat);
-  if (view.phase === 'awaiting-discard') return others.filter((s) => s === view.turn);
-  if (view.phase === 'awaiting-claims') return others.filter((s) => s !== view.lastDiscard?.by);
-  return [];
+  if (view.phase !== 'awaiting-discard') return [];
+  return view.opponents.map((o) => o.seat).filter((s) => s === view.turn);
 }
 
 // ---------------------------------------------------------------------------

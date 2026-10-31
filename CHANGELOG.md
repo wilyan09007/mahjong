@@ -8,12 +8,9 @@ versions are `MAJOR.MINOR.PATCH.MICRO`.
 
 ### Added
 
-- **Thinking dots.** Three gold dots rise and fall by the name of an opponent
-  who may be deciding: the player on turn, or — through a claim window — every
-  opponent except the one who threw the tile. Who can actually claim stays
-  hidden: each player's view only ever carries their own options, so the dots
-  mean "might be deciding", never "can claim". A bot's pause now reads as
-  thinking rather than as the game having stalled.
+- **Thinking dots.** Three gold dots rise and fall by the name of the
+  opponent whose turn it is, so a bot's pause reads as thinking rather than as
+  the game having stalled. Claim windows show none.
 
 ## [0.2.12.0] - 2026-10-31
 
