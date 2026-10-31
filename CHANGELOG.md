@@ -4,6 +4,35 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.11.0] - 2026-10-31
+
+### Changed
+
+- **Each player's discards lie in front of them.** Mine along the bottom of
+  the felt, the player across along the top, the side players' at the ends —
+  where they sit, not in an anonymous strip of four across the middle. Each
+  pond starts nearest the centre and grows toward its owner, reading in the
+  owner's own left-to-right, as at a real table. Each sits on its own mat,
+  watermarked with the seat's wind (東 is the dealer), so the four read as four
+  places from the first turn. Only the newest discard at the table is ringed:
+  the one that can still be claimed. The duplicate copy of it that sat in the
+  middle is gone.
+- **Discards size themselves to the felt.** The layout picks the largest tile
+  at which every pond holds 18 — the most any seat threw across 3000 simulated
+  hands — so a small phone gets 21px discards and an 880×400 one gets 27px,
+  instead of a fixed 24px that overflowed one and wasted the other. A pond past
+  18 squeezes together rather than spilling off its mat.
+- **The hand is bigger: 40px tiles, up from 36.** My melds grow to 30px.
+
+### Fixed
+
+- On an 800px-wide phone the last tiles of the hand sat under the Discard
+  button, which took their taps. The hand was sized to the width beside the
+  action stack but centred across the whole screen; it is now laid out beside
+  it.
+- Late in a hand, the old pond strip could outgrow the middle of the table and
+  be clipped without a trace on smaller phones.
+
 ## [0.2.10.0] - 2026-10-31
 
 ### Added

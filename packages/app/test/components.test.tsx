@@ -5,7 +5,9 @@ import { assertThat } from './support';
 import { TileFace } from '../src/tiles/TileFace';
 import { Tile } from '../src/tiles/Tile';
 import { ActionBar } from '../src/components/Controls';
-import { exposedTiles, HandRow, OpponentPanel } from '../src/components/Board';
+import { exposedTiles, HandRow, OpponentPanel, SeatPond } from '../src/components/Board';
+import { feltSize, pondLayout } from '../src/state/tableLayout';
+import { PHONE_LANDSCAPE } from '../src/theme/tokens';
 import { Callout } from '../src/components/Motion';
 import type { EntranceKind } from '../src/theme/motion';
 import { sideStackColumns } from '../src/theme/tokens';
@@ -513,5 +515,24 @@ describe('Motion', () => {
     await mounted(<Callout text="自摸" name="Ana" edge="bottom" big />, (screen) => {
       expect(screen.getByText('自摸')).toBeTruthy();
     });
+  });
+});
+
+
+describe('SeatPond', () => {
+  it('draws every discard, each inside its own mat, for every seat', async () => {
+    const { tile, mats } = pondLayout(feltSize(PHONE_LANDSCAPE));
+    const tiles = [...NON_FLOWER_KINDS].slice(0, 18) as TileKind[];
+    for (const edge of ['bottom', 'right', 'top', 'left'] as const) {
+      await mounted(
+        <SeatPond edge={edge} tiles={tiles} mat={mats[edge]} tile={tile} wind="E" highlightLast />,
+        (screen) => {
+          const drawn = screen.getAllByTestId(`pond-${edge}-tile`);
+          assertThat(drawn.length === 18, `${edge}: drew ${drawn.length} of 18 discards`);
+          // The seat wind is watermarked on the mat.
+          expect(screen.getByText('東')).toBeTruthy();
+        },
+      );
+    }
   });
 });

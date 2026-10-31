@@ -1,5 +1,6 @@
 import { assertAtMost, assertAtLeast, assertThat } from './support';
-import { handTileWidth, pondColumns } from '../src/components/Board';
+import { handTileWidth } from '../src/components/Board';
+import { POND, feltSize, pondBlock, pondLayout } from '../src/state/tableLayout';
 import {
   COMPACT_ROW, PHONE_LANDSCAPE, SIDE_STACK, TABLE_ZONES, TILE_SIZES,
   sideStackColumns, tileHeight, tokens,
@@ -19,6 +20,9 @@ import {
  * clipped the first-place row off the top and "Leave table" off the bottom. So
  * they get budgets here too rather than another round of discovery by eye.
  */
+
+/** The row above my hand that holds my completed sets (`myMelds` in table.tsx). */
+const MELD_ROW = 42;
 
 /** A button as `Controls.tsx` renders it. */
 const BUTTON = tokens.hitSlop + 12;
@@ -63,7 +67,7 @@ describe('landscape table fits a phone', () => {
     //
     // Flowers and emotes share ONE strip below the hand, in opposite corners,
     // so the zone pays for the taller of them once rather than a row each.
-    const melds = 40;
+    const melds = MELD_ROW;
     const handRow = tileHeight(TILE_SIZES.hand) + 10; // tiles lift 10px when selected
     const strip = Math.max(tileHeight(TILE_SIZES.mini), 22 + 2 * tokens.space.xs);
     const total = melds + handRow + strip;
@@ -187,19 +191,38 @@ describe('landscape table fits a phone', () => {
     );
   });
 
-  it('four discard ponds fit side by side at any width', () => {
-    // Pond columns adapt to the width for exactly this reason: when four ponds
-    // did not fit, the row wrapped into a 2x2 block that swelled across the
-    // middle of the table and pressed up against the side seats.
-    for (const width of [PHONE_LANDSCAPE.width, 711, 800, 880, 1100]) {
-      const centre = width - 2 * tokens.space.s - 2 * TABLE_ZONES.side;
-      const total = 4 * pondColumns(width) * (TILE_SIZES.discard + 1) + 3 * tokens.space.s;
-      assertAtMost(
-        total, centre,
-        `at ${width}px wide the four ponds span ${total}px of ${centre}px ` +
-          'between the seats, so they would wrap into the side players',
-      );
+  it('every seat’s pond holds a full hand’s discards, on the felt, at any size', () => {
+    // 18 is the most any seat threw across 3000 simulated hands. The ponds sit
+    // in front of their owners and must hold that many without leaving the
+    // felt — on the smallest phone at a size you can still read.
+    for (const screen of [
+      PHONE_LANDSCAPE, { width: 711, height: 400 }, { width: 880, height: 400 }, { width: 1100, height: 500 },
+    ]) {
+      const felt = feltSize(screen);
+      const { tile, mats } = pondLayout(felt);
+      for (const [edge, m] of Object.entries(mats)) {
+        assertThat(
+          m.x >= 0 && m.y >= 0 && m.x + m.width <= felt.width && m.y + m.height <= felt.height,
+          `${screen.width}x${screen.height}: the ${edge} pond leaves the felt`,
+        );
+      }
+      assertAtLeast(tile, 18, `${screen.width}x${screen.height}: discards shrink to ${tile}px`);
     }
+    assertAtLeast(pondLayout(feltSize(PHONE_LANDSCAPE)).tile, 21,
+      'on the reference phone discards are smaller than the 21px they were designed at');
+    assertAtLeast(POND.capacity, 18, 'a pond no longer holds the worst hand seen');
+  });
+
+  it('discard size follows the felt, because no fixed size fits every screen', () => {
+    // Proof the sizing is load-bearing: the old fixed 24px discard does not fit
+    // four full ponds on the reference phone's felt...
+    const felt = feltSize(PHONE_LANDSCAPE);
+    const tall24 = 2 * (pondBlock('bottom', 24).height + 2 * POND.matPad + POND.rimPad) + POND.centreGap;
+    assertAtLeast(tall24, felt.height + 1,
+      'a fixed 24px discard now fits the small phone — the felt-driven size is not needed');
+    // ...and a size that fits there would waste a large screen's felt.
+    assertThat(pondLayout(feltSize({ width: 1100, height: 500 })).tile > pondLayout(felt).tile,
+      'a large screen draws discards no bigger than a small one');
   });
 
   it("a side opponent's 17 concealed tiles fit their rail", () => {
@@ -250,9 +273,8 @@ describe('landscape table fits a phone', () => {
     );
     // And the rim must not eat so much width that the ponds stop fitting.
     assertAtLeast(
-      pondColumns(PHONE_LANDSCAPE.width), 3,
-      `the rim at ${TABLE_ZONES.side}px leaves room for only ` +
-        `${pondColumns(PHONE_LANDSCAPE.width)} discards per pond row`,
+      pondLayout(feltSize(PHONE_LANDSCAPE)).tile, 21,
+      `the rim at ${TABLE_ZONES.side}px squeezes the discards below 21px`,
     );
   });
 

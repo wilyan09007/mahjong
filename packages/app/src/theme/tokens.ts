@@ -21,6 +21,15 @@ export const tokens = {
     tableFeltRim: '#124B36',
     /** Hairline where the surface meets the rim. Catches light, very faintly. */
     tableSurfaceEdge: 'rgba(255,255,255,0.06)',
+    /**
+     * A seat's discard mat: a shallow tray, clearly its own object. Fainter
+     * than this and two neighbouring ponds merged into one block of tiles,
+     * and a pond's first tile in a new row looked like a stray.
+     */
+    pondMat: 'rgba(0,0,0,0.20)',
+    pondMatEdge: 'rgba(255,255,255,0.12)',
+    /** The seat wind watermarked on an empty mat. */
+    pondWind: 'rgba(255,255,255,0.09)',
     tileFace: '#F6F1E7',
     /** The ivory side of the tile, a shade under the face. */
     tileFaceEdge: '#DDD2BC',
@@ -70,16 +79,17 @@ export const tokens = {
  * Rendered widths per context; heights derive from `tokens.tile.aspect`.
  *
  * Sized for the real target: a phone in landscape is about 880x400 CSS pixels,
- * and HEIGHT is the scarce dimension. At the original 44px hand tile the table
- * needed ~470px of vertical space and every zone overlapped the next. A 36px
- * hand tile is 49px tall, which leaves room for the opponents, the ponds and
- * the action bar to coexist. Width was never the constraint — 17 hand tiles at
- * this size span ~630px of the 880 available.
+ * and HEIGHT is the scarce dimension. The hand was 36px while four ponds sat in
+ * a strip across the middle of the table; with the ponds placed in front of
+ * their owners and sized to the felt (see `pondLayout`), the hand gets 40px —
+ * 17 of them still fit beside the action stack on the 880px target. Discards
+ * are not here: their size is chosen per screen by `pondLayout`.
  */
 export const TILE_SIZES = {
-  hand: 36,
+  hand: 40,
+  /** A discard outside the table (the gallery). At the table `pondLayout` sizes them. */
   discard: 24,
-  meld: 28,
+  meld: 30,
   mini: 18,
 } as const;
 

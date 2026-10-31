@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
+import type { Meld, OpponentView, PlayerView, Seat, TileKind, Wind } from '@mahjong/engine';
 import { Tile, type TileEntrance } from '../tiles/Tile';
 import { TurnGlow } from './Motion';
 import { dealDelay } from '../theme/motion';
@@ -9,7 +9,7 @@ import {
   COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, sideStackColumns, tileHeight, tokens,
 } from '../theme/tokens';
 import { strings } from '../strings';
-import { DISCARDS_PER_ROW, isVerticalEdge, type Edge } from '../state/tableLayout';
+import { POND, isVerticalEdge, pondSlots, type Edge, type Rect } from '../state/tableLayout';
 
 /**
  * Widest a hand tile can be and still fit `count` of them across `available`.
@@ -130,47 +130,60 @@ export function MeldGroup({
   );
 }
 
+const WIND_GLYPH: Record<Wind, string> = { E: '東', S: '南', W: '西', N: '北' };
+
 /**
- * A seat's discard pond, newest ringed in gold.
+ * One seat's discards, on its mat in front of that player.
  *
- * The width is EXPLICIT, not a maxWidth. A wrapping row inside a column
- * collapses to zero intrinsic width in React Native, so `maxWidth` alone made
- * the pond wrap after every single tile and render as a one-tile-wide
- * scrolling column.
+ * Where the pond sits says whose it is; the mat, faintly visible even when
+ * empty and watermarked with the seat's wind (東 is the dealer), makes the four
+ * of them read as four separate places from the first turn. Only the newest
+ * discard at the table is ringed — the one that can still be claimed.
  */
-export function DiscardPond({
-  tiles, highlightLast = false, perRow = DISCARDS_PER_ROW, enterLast,
+export function SeatPond({
+  edge, tiles, mat, tile, wind, highlightLast = false, enterLast,
 }: {
+  edge: Edge;
   tiles: TileKind[];
+  /** Where the mat sits on the felt, from `pondLayout`. */
+  mat: Rect;
+  /** Discard width, from `pondLayout`. */
+  tile: number;
+  wind: Wind;
   highlightLast?: boolean;
   /** The newest tile was just thrown: land it like this. */
   enterLast?: TileEntrance;
-  /** Tiles per row. Narrower screens use fewer so all four ponds stay side by
-   *  side; wrapping the ponds themselves pushed them into the side seats. */
-  perRow?: number;
 }): React.ReactElement {
+  const slots = pondSlots(edge, tiles.length, tile);
   return (
-    <View style={[styles.pond, { width: perRow * (TILE_SIZES.discard + 1) }]}>
-      {tiles.map((tile, i) => (
-        <Tile
-          key={`${tile}-${i}`}
-          tile={tile}
-          size="discard"
-          selected={highlightLast && i === tiles.length - 1}
-          lift={false}
-          entrance={i === tiles.length - 1 ? enterLast : undefined}
-        />
+    <View
+      testID={`pond-${edge}`}
+      pointerEvents="none"
+      style={[styles.pondMat, { left: mat.x, top: mat.y, width: mat.width, height: mat.height }]}
+    >
+      <Text
+        style={[styles.pondWind, { fontSize: Math.min(mat.width, mat.height) * 0.62 }]}
+        allowFontScaling={false}
+      >
+        {WIND_GLYPH[wind]}
+      </Text>
+      {tiles.map((t, i) => (
+        <View
+          key={`${t}-${i}`}
+          style={[styles.pondSlot, { left: POND.matPad + slots[i]!.x, top: POND.matPad + slots[i]!.y }]}
+        >
+          <Tile
+            tile={t}
+            width={tile}
+            selected={highlightLast && i === tiles.length - 1}
+            lift={false}
+            entrance={i === tiles.length - 1 ? enterLast : undefined}
+            testID={`pond-${edge}-tile`}
+          />
+        </View>
       ))}
     </View>
   );
-}
-
-/** How many tiles fit in one pond row so that all four ponds sit side by side. */
-export function pondColumns(screenWidth: number): number {
-  const centre = screenWidth - 2 * tokens.space.s - 2 * TABLE_ZONES.side;
-  const perPond = (centre - 3 * tokens.space.s) / 4;
-  const fit = Math.floor(perPond / (TILE_SIZES.discard + 1));
-  return Math.max(3, Math.min(DISCARDS_PER_ROW, fit));
 }
 
 /** Mini tile width plus its gap, for sizing the concealed-tile block. */
@@ -381,31 +394,6 @@ export function TableStatus({ view, seatNames }: {
   );
 }
 
-/**
- * The tile just thrown, alone in the middle of the table where it landed.
- * Remounted per throw (keyed by who threw what, and how many tiles are down),
- * so each one lands afresh from its thrower's side.
- */
-export function LastDiscard({ view, entrance }: {
-  view: PlayerView;
-  entrance?: TileEntrance;
-}): React.ReactElement | null {
-  if (!view.lastDiscard) return null;
-  const thrown = view.discards.length + view.opponents.reduce((n, o) => n + o.discards.length, 0);
-  return (
-    <View style={styles.lastDiscard}>
-      <Tile
-        key={`${view.lastDiscard.by}-${view.lastDiscard.tile}-${thrown}`}
-        tile={view.lastDiscard.tile}
-        size="discard"
-        selected
-        lift={false}
-        entrance={entrance}
-      />
-    </View>
-  );
-}
-
 /** A lobby seat card. `compact` trims it to fit a landscape phone. */
 export function SeatCard({
   seat, name, kind, connected, isHost, canEdit, compact = false, onAddBot, onRemoveBot,
@@ -446,7 +434,17 @@ const styles = StyleSheet.create({
   handTile: { marginHorizontal: 1, marginTop: 10 },
   meldRow: { flexDirection: 'row', flexWrap: 'wrap' },
   meld: { flexDirection: 'row', marginRight: tokens.space.s, marginTop: tokens.space.xs },
-  pond: { flexDirection: 'row', flexWrap: 'wrap', gap: 1 },
+  pondMat: {
+    position: 'absolute',
+    backgroundColor: tokens.color.pondMat,
+    borderColor: tokens.color.pondMatEdge,
+    borderWidth: 1,
+    borderRadius: tokens.radius.s,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pondWind: { color: tokens.color.pondWind, fontFamily: tokens.font.cjk, includeFontPadding: false },
+  pondSlot: { position: 'absolute' },
   opponent: {
     padding: tokens.space.xs,
     borderRadius: tokens.radius.m,
@@ -498,7 +496,6 @@ const styles = StyleSheet.create({
   statusWall: { color: tokens.color.textOnFelt, fontSize: 12 },
   statusTurn: { color: tokens.color.textMuted, fontSize: 11 },
   statusTurnMine: { color: tokens.color.accentGold, fontSize: 13, fontWeight: '700' },
-  lastDiscard: { alignItems: 'center' },
   seatCard: {
     backgroundColor: tokens.color.surfaceRaised,
     borderRadius: tokens.radius.m,

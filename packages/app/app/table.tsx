@@ -2,18 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import type { Action, PlayerView, Seat, TileKind } from '@mahjong/engine';
+import { seatWind, type Action, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
 import { useGameStore } from '../src/state/store';
 import { playAction, send } from '../src/net/connection';
 import { C2S } from '../src/net/messages';
 import { actionBarModel, formatResult } from '../src/state/selectors';
-import { edgeFor } from '../src/state/tableLayout';
+import { FELT_INSET, edgeFor, feltSize, pondLayout } from '../src/state/tableLayout';
 import { tableEvents } from '../src/state/tableEvents';
 import { planMotion, type Callout as CalloutPlan, type MotionPlan } from '../src/state/motionPlan';
 import { Appear, Callout } from '../src/components/Motion';
 import { MOTION } from '../src/theme/motion';
 import {
-  DiscardPond, HandRow, LastDiscard, MeldGroup, OpponentPanel, TableStatus, pondColumns,
+  HandRow, MeldGroup, OpponentPanel, SeatPond, TableStatus,
 } from '../src/components/Board';
 import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Controls';
 import { Tile } from '../src/tiles/Tile';
@@ -77,7 +77,10 @@ export default function TableScreen(): React.ReactElement {
   const clearHandResult = useGameStore((s) => s.clearHandResult);
 
   const [selectedTile, setSelectedTile] = useState<TileKind | null>(null);
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  // The felt's real size once laid out; until then, what the insets predict.
+  const [felt, setFelt] = useState<{ width: number; height: number } | null>(null);
+  const ponds = useMemo(() => pondLayout(felt ?? feltSize({ width, height })), [felt, width, height]);
   const motion = useTableMotion(view);
   const callouts = useCallouts(motion);
 
@@ -114,9 +117,6 @@ export default function TableScreen(): React.ReactElement {
     return names;
   }, [lobby]);
 
-  // Enough columns that all four ponds stay side by side at this width.
-  const perRow = pondColumns(width);
-
   const model = useMemo(
     () => actionBarModel(view ?? null, selectedTile),
     [view, selectedTile],
@@ -138,9 +138,35 @@ export default function TableScreen(): React.ReactElement {
   return (
     <View style={styles.screen}>
       {/* The playing surface. The screen itself is the darker rim all four
-          players sit at; this is the felt the wall and the ponds rest on.
-          Purely decorative, so it takes no touches. */}
-      <View style={styles.surface} pointerEvents="none" />
+          players sit at; this is the felt, and each player's discards lie on
+          it in front of them — position is what says whose they are. */}
+      <View
+        style={styles.surface}
+        pointerEvents="none"
+        onLayout={(e) => {
+          const { width: w, height: h } = e.nativeEvent.layout;
+          if (!felt || felt.width !== w || felt.height !== h) setFelt({ width: w, height: h });
+        }}
+      >
+        {[
+          { seat: view.seat, discards: view.discards },
+          ...view.opponents.map((o) => ({ seat: o.seat, discards: o.discards })),
+        ].map(({ seat, discards }) => {
+          const edge = edgeFor(view.seat, seat);
+          return (
+            <SeatPond
+              key={seat}
+              edge={edge}
+              tiles={discards}
+              mat={ponds.mats[edge]}
+              tile={ponds.tile}
+              wind={seatWind(seat, view.dealer)}
+              highlightLast={view.lastDiscard?.by === seat}
+              enterLast={motion.pondLast[seat]}
+            />
+          );
+        })}
+      </View>
 
       {/* Round wind, wall count and whose turn — in the top-left corner of the
           SCREEN, not of the playing surface. It started in the middle of the
@@ -197,56 +223,33 @@ export default function TableScreen(): React.ReactElement {
         </View>
       ))}
 
-      <View style={styles.middleRow}>
-        <View style={styles.centerColumn}>
-          <LastDiscard
-            view={view}
-            entrance={view.lastDiscard ? motion.pondLast[view.lastDiscard.by] : undefined}
-          />
-          {/* Four ponds side by side rather than a scrolling stack — the whole
-              point of the pond is being able to glance at what has been
-              thrown, which a scroll view defeats. */}
-          <View style={styles.ponds}>
-            <DiscardPond
-              tiles={view.discards}
-              highlightLast
-              perRow={perRow}
-              enterLast={motion.pondLast[view.seat]}
-            />
-            {view.opponents.map((o) => (
-              <DiscardPond
-                key={o.seat}
-                tiles={o.discards}
-                perRow={perRow}
-                enterLast={motion.pondLast[o.seat]}
-              />
-            ))}
-          </View>
-        </View>
-
-      </View>
+      {/* The middle of the table is the felt above; this only holds the bands
+          above and below it apart. */}
+      <View style={styles.middleRow} pointerEvents="none" />
 
       {/* Me */}
       <View style={styles.bottom}>
         {/* Completed sets sit directly above my remaining tiles — they are part
             of the hand I am reading, so they belong next to it. */}
-        <View style={styles.myMelds}>
+        <View style={[styles.myMelds, styles.besideActions]}>
           <MeldGroup melds={view.melds} freshLast={!!motion.freshMeld[view.seat]} />
         </View>
-        <HandRow
-          tiles={view.hand}
-          available={width - 2 * tokens.space.s - TABLE_ZONES.actionGutter}
-          selectedTile={selectedTile}
-          entrances={motion.hand}
-          onSelect={setSelectedTile}
-          onDiscard={(tile) => {
-            const discard = view.legalActions.find(
-              (a) => a.type === 'discard' && a.tile === tile,
-            );
-            if (discard) dispatch(discard);
-          }}
-          disabled={pendingAction}
-        />
+        <View style={styles.besideActions}>
+          <HandRow
+            tiles={view.hand}
+            available={width - 2 * tokens.space.s - TABLE_ZONES.actionGutter}
+            selectedTile={selectedTile}
+            entrances={motion.hand}
+            onSelect={setSelectedTile}
+            onDiscard={(tile) => {
+              const discard = view.legalActions.find(
+                (a) => a.type === 'discard' && a.tile === tile,
+              );
+              if (discard) dispatch(discard);
+            }}
+            disabled={pendingAction}
+          />
+        </View>
         {/* The strip under the hand: flowers in the left corner, emotes in the
             right. Flowers only — they are scoring bookkeeping, not part of the
             hand you are reading. */}
@@ -381,16 +384,16 @@ const styles = StyleSheet.create({
   // The playing surface, inset so the seats fall outside it. Only a shade
   // lighter than the rim — enough to read as a surface with an edge, not
   // enough to look like a green box drawn on a green screen.
-  // Inset a further `space.s` beyond each zone so the seats sit fully ON the
-  // rim with a visible gap. Flush against the zones, every panel's border and
-  // my melds crossed the surface's rounded edge by 3-4px, which read as the
-  // felt being torn rather than as tiles resting on a table.
+  // Inset clear of every zone (`FELT_INSET`) so the seats sit fully ON the rim.
+  // Flush against the zones, every panel's border and my melds crossed the
+  // surface's rounded edge by 3-4px, which read as the felt being torn rather
+  // than as tiles resting on a table. The ponds lay out to its measured size.
   surface: {
     position: 'absolute',
-    top: TABLE_ZONES.top + tokens.space.s + tokens.space.xs,
-    bottom: TABLE_ZONES.bottom + 2 * tokens.space.s,
-    left: TABLE_ZONES.side + tokens.space.s,
-    right: TABLE_ZONES.side + tokens.space.s,
+    top: FELT_INSET.top,
+    bottom: FELT_INSET.bottom,
+    left: FELT_INSET.side,
+    right: FELT_INSET.side,
     backgroundColor: tokens.color.tableFelt,
     borderRadius: tokens.radius.l,
     borderWidth: 1,
@@ -402,12 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  // Padded by the rails' width so the ponds sit exactly where they did when
-  // the side seats were columns in this row.
-  middleRow: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 0,
-    paddingHorizontal: TABLE_ZONES.side,
-  },
+  middleRow: { flex: 1, minHeight: 0 },
   rail: {
     position: 'absolute',
     top: TABLE_ZONES.railTop,
@@ -418,17 +416,12 @@ const styles = StyleSheet.create({
   },
   railLeft: { left: tokens.space.s },
   railRight: { right: tokens.space.s },
-  centerColumn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
-  ponds: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    gap: tokens.space.s,
-    marginTop: tokens.space.xs,
-    overflow: 'hidden',
-  },
   bottom: { height: TABLE_ZONES.bottom, justifyContent: 'flex-end', gap: 2 },
+  // The hand and my melds are laid out in the width BESIDE the action stack,
+  // not across the whole screen. The hand was always sized to that width but
+  // centred on the full one, so on an 800px phone its last tiles sat under the
+  // Discard button — which then took the tap meant for the tile.
+  besideActions: { marginRight: TABLE_ZONES.actionGutter },
   // The band under the hand, which was empty felt.
   bottomStrip: {
     flexDirection: 'row',
@@ -440,7 +433,7 @@ const styles = StyleSheet.create({
   myMelds: {
     flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
     alignItems: 'flex-end', justifyContent: 'center',
-    maxHeight: 40, overflow: 'hidden',
+    maxHeight: 42, overflow: 'hidden',
   },
   // Bottom-LEFT corner: flowers only, mini size, one row.
   myFlowers: {

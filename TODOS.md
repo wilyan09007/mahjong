@@ -32,12 +32,6 @@ cd packages/app
 EXPO_PUBLIC_SERVER_URL=http://localhost:2567 npx expo start --web --port 8090
 ```
 
-### Discard ponds are not placed by seat
-**Priority:** P2
-All four ponds sit in a row in the middle of the table rather than adjacent to
-each player edge, so you cannot tell at a glance who threw what. Plan 3 Task 7
-asks for per-edge placement. The ponds themselves render correctly.
-
 ### Ship it — Plan 4
 **Priority:** P0
 See `docs/DEPLOYMENT.md` for the ordered runbook. Every artifact exists
@@ -74,7 +68,7 @@ waiting for the win. Replay any of it from `/dev-gallery`. Still open:
   tiles at once before simplifying the tile body.
 - **A true flight from hand to pond.** A discard lands in the pond from the
   thrower's side rather than travelling from the exact tile you tapped, which
-  needs measured layouts. Worth it once ponds sit by seat (see the P2 above).
+  needs measured layouts. Ponds now sit by seat, so the target is known.
 - **Sound.** Tile clacks on discard and claim would do as much as the motion.
 
 ### v1.1 — Cantonese variant

@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FLOWERS, NON_FLOWER_KINDS, type TileKind } from '@mahjong/engine';
 import { Tile, type TileEntrance } from '../src/tiles/Tile';
-import { HandRow, MeldGroup, OpponentPanel } from '../src/components/Board';
+import { HandRow, MeldGroup, OpponentPanel, SeatPond } from '../src/components/Board';
 import { Button } from '../src/components/Controls';
 import { Callout } from '../src/components/Motion';
-import { TABLE_ZONES, tokens } from '../src/theme/tokens';
+import { PHONE_LANDSCAPE, TABLE_ZONES, tokens } from '../src/theme/tokens';
 import { MOTION, dealDelay } from '../src/theme/motion';
 import { strings } from '../src/strings';
-import type { Edge } from '../src/state/tableLayout';
+import { feltSize, pondLayout, type Edge } from '../src/state/tableLayout';
 
 /**
  * Every tile at every size, every motion on demand, and the board pieces with
@@ -24,6 +24,7 @@ export default function DevGalleryScreen(): React.ReactElement {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <MotionStage />
+      <LateGamePonds />
 
       <Text style={styles.heading}>42 faces @ hand size</Text>
       <View style={styles.grid}>
@@ -160,6 +161,36 @@ function MotionStage(): React.ReactElement {
   );
 }
 
+/**
+ * Four full ponds — 18 discards each, the most any seat threw in 3000
+ * simulated hands — on a felt the size of the smallest phone's. If this fits
+ * and reads, every real game does.
+ */
+function LateGamePonds(): React.ReactElement {
+  const felt = feltSize(PHONE_LANDSCAPE);
+  const { tile, mats } = pondLayout(felt);
+  const pool = [...NON_FLOWER_KINDS];
+  const winds = { bottom: 'E', right: 'S', top: 'W', left: 'N' } as const;
+  return (
+    <>
+      <Text style={styles.heading}>Ponds — a full late game on the smallest phone ({tile}px discards)</Text>
+      <View style={[styles.felt, { width: felt.width, height: felt.height }]}>
+        {(['bottom', 'right', 'top', 'left'] as const).map((edge, s) => (
+          <SeatPond
+            key={edge}
+            edge={edge}
+            tiles={Array.from({ length: 18 }, (_, i) => pool[(i * 7 + s * 5) % pool.length]!)}
+            mat={mats[edge]}
+            tile={tile}
+            wind={winds[edge]}
+            highlightLast={edge === 'left'}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
 const ARROW: Record<Edge, string> = { bottom: '↑', left: '→', top: '↓', right: '←' };
 
 const SAMPLE_MELDS = [
@@ -194,6 +225,12 @@ const styles = StyleSheet.create({
   content: { padding: tokens.space.m, gap: tokens.space.m },
   heading: { color: tokens.color.accentGold, fontSize: 16, fontWeight: '700' },
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.xs },
+  felt: {
+    backgroundColor: tokens.color.tableFelt,
+    borderRadius: tokens.radius.l,
+    borderWidth: 1,
+    borderColor: tokens.color.tableSurfaceEdge,
+  },
   // Roughly a phone table's height, so call-outs land where they would in play.
   stage: {
     height: 360,
