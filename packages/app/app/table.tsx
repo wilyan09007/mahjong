@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import type { Action, Seat, TileKind } from '@mahjong/engine';
+import type { Action, PlayerView, Seat, TileKind } from '@mahjong/engine';
 import { useGameStore } from '../src/state/store';
 import { playAction, send } from '../src/net/connection';
 import { C2S } from '../src/net/messages';
 import { actionBarModel, formatResult } from '../src/state/selectors';
 import { edgeFor } from '../src/state/tableLayout';
+import { tableEvents } from '../src/state/tableEvents';
+import { planMotion, type Callout as CalloutPlan, type MotionPlan } from '../src/state/motionPlan';
+import { Appear, Callout } from '../src/components/Motion';
+import { MOTION } from '../src/theme/motion';
 import {
   DiscardPond, HandRow, LastDiscard, MeldGroup, OpponentPanel, TableStatus, pondColumns,
 } from '../src/components/Board';
@@ -15,6 +19,43 @@ import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Co
 import { Tile } from '../src/tiles/Tile';
 import { TABLE_ZONES, tokens } from '../src/theme/tokens';
 import { strings } from '../src/strings';
+
+const STILL: MotionPlan = { hand: {}, dealing: false, pondLast: {}, freshMeld: {}, callouts: [] };
+
+/**
+ * What should move, given the view that just arrived. The server sends whole
+ * positions; comparing each with the one before is what turns them back into
+ * moments — a deal, a draw, a discard landing, a pung.
+ */
+function useTableMotion(view: PlayerView | null): MotionPlan {
+  const previous = useRef<PlayerView | null>(null);
+  const plan = useMemo(
+    () => (view ? planMotion(tableEvents(previous.current, view), view.seat, view.hand.length) : STILL),
+    [view],
+  );
+  useEffect(() => { if (view) previous.current = view; }, [view]);
+  return plan;
+}
+
+let calloutSequence = 0;
+
+/** Call-outs currently on the table. Each removes itself once it has played. */
+function useCallouts(plan: MotionPlan): (CalloutPlan & { id: number })[] {
+  const [live, setLive] = useState<(CalloutPlan & { id: number })[]>([]);
+  useEffect(() => {
+    if (plan.callouts.length === 0) return;
+    const fresh = plan.callouts.map((c) => ({ ...c, id: ++calloutSequence }));
+    setLive((now) => [...now, ...fresh]);
+    for (const c of fresh) {
+      const hold = c.big ? MOTION.duration.winHold : MOTION.duration.calloutHold;
+      setTimeout(
+        () => setLive((now) => now.filter((x) => x.id !== c.id)),
+        hold + MOTION.duration.fade + 100,
+      );
+    }
+  }, [plan]);
+  return live;
+}
 
 /**
  * The table. Landscape-locked while focused.
@@ -37,6 +78,19 @@ export default function TableScreen(): React.ReactElement {
 
   const [selectedTile, setSelectedTile] = useState<TileKind | null>(null);
   const { width } = useWindowDimensions();
+  const motion = useTableMotion(view);
+  const callouts = useCallouts(motion);
+
+  // The result sheet waits for the win call-out to land: covering the 胡 the
+  // moment it appears would throw away the best moment of the hand.
+  const [resultReady, setResultReady] = useState(false);
+  useEffect(() => {
+    setResultReady(false);
+    if (!handResult) return;
+    const wait = handResult.result.type === 'win' ? MOTION.duration.resultDelay : MOTION.duration.settle;
+    const timer = setTimeout(() => setResultReady(true), wait);
+    return () => clearTimeout(timer);
+  }, [handResult]);
 
   useEffect(() => {
     // Orientation lock does not exist on web and is unavailable on some
@@ -109,6 +163,8 @@ export default function TableScreen(): React.ReactElement {
               isTurn={view.turn === o.seat}
               connected={seatStatus[o.seat] ?? true}
               name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
+              dealing={motion.dealing}
+              freshMeld={!!motion.freshMeld[o.seat]}
             />
           ))}
       </View>
@@ -134,6 +190,8 @@ export default function TableScreen(): React.ReactElement {
                 isTurn={view.turn === o.seat}
                 connected={seatStatus[o.seat] ?? true}
                 name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
+                dealing={motion.dealing}
+                freshMeld={!!motion.freshMeld[o.seat]}
               />
             ))}
         </View>
@@ -141,14 +199,27 @@ export default function TableScreen(): React.ReactElement {
 
       <View style={styles.middleRow}>
         <View style={styles.centerColumn}>
-          <LastDiscard view={view} />
+          <LastDiscard
+            view={view}
+            entrance={view.lastDiscard ? motion.pondLast[view.lastDiscard.by] : undefined}
+          />
           {/* Four ponds side by side rather than a scrolling stack — the whole
               point of the pond is being able to glance at what has been
               thrown, which a scroll view defeats. */}
           <View style={styles.ponds}>
-            <DiscardPond tiles={view.discards} highlightLast perRow={perRow} />
+            <DiscardPond
+              tiles={view.discards}
+              highlightLast
+              perRow={perRow}
+              enterLast={motion.pondLast[view.seat]}
+            />
             {view.opponents.map((o) => (
-              <DiscardPond key={o.seat} tiles={o.discards} perRow={perRow} />
+              <DiscardPond
+                key={o.seat}
+                tiles={o.discards}
+                perRow={perRow}
+                enterLast={motion.pondLast[o.seat]}
+              />
             ))}
           </View>
         </View>
@@ -160,12 +231,13 @@ export default function TableScreen(): React.ReactElement {
         {/* Completed sets sit directly above my remaining tiles — they are part
             of the hand I am reading, so they belong next to it. */}
         <View style={styles.myMelds}>
-          <MeldGroup melds={view.melds} />
+          <MeldGroup melds={view.melds} freshLast={!!motion.freshMeld[view.seat]} />
         </View>
         <HandRow
           tiles={view.hand}
           available={width - 2 * tokens.space.s - TABLE_ZONES.actionGutter}
           selectedTile={selectedTile}
+          entrances={motion.hand}
           onSelect={setSelectedTile}
           onDiscard={(tile) => {
             const discard = view.legalActions.find(
@@ -194,7 +266,12 @@ export default function TableScreen(): React.ReactElement {
           row and the two overlapped. `box-none` so the empty column never
           swallows a tap meant for the table underneath. */}
       <View style={styles.actionStack} pointerEvents="box-none">
-        <ActionBar model={model} onAction={dispatch} disabled={pendingAction} vertical />
+        {/* Re-keyed whenever the set of choices changes, so new options pop in
+            rather than appearing — a pung offer has to catch the eye in the
+            second or two it is open. */}
+        <Appear key={actionSignature(model)}>
+          <ActionBar model={model} onAction={dispatch} disabled={pendingAction} vertical />
+        </Appear>
       </View>
 
       {/* Floating emote bubbles */}
@@ -206,9 +283,24 @@ export default function TableScreen(): React.ReactElement {
         ))}
       </View>
 
+      {/* Call-outs: 碰, 槓, 胡… stamped in front of whoever made them. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {callouts.map((c) => (
+          <Callout
+            key={c.id}
+            text={c.text}
+            name={c.muted ? '' : seatNames[c.seat] ?? ''}
+            edge={edgeFor(view.seat, c.seat)}
+            big={c.big}
+            muted={c.muted}
+          />
+        ))}
+      </View>
+
       {/* Hand result overlay — doubles as scoring education. */}
-      {handResult && (
+      {handResult && resultReady && (
         <View style={styles.overlay}>
+          <Appear style={styles.overlayCard}>
           <ScrollView contentContainerStyle={styles.overlayInner}>
             {(() => {
               const formatted = formatResult(handResult.result, seatNames);
@@ -247,12 +339,24 @@ export default function TableScreen(): React.ReactElement {
               );
             })()}
           </ScrollView>
+          </Appear>
         </View>
       )}
 
       <ErrorToast message={errorMessage} onDismiss={dismissError} />
     </View>
   );
+}
+
+/** Which buttons are on offer — when this changes, the action stack pops in afresh. */
+function actionSignature(model: ReturnType<typeof actionBarModel>): string {
+  return [
+    model.win ? 'win' : '',
+    ...model.claims.map((c) => c.label),
+    ...model.kongs.map(() => 'kong'),
+    model.pass ? 'pass' : '',
+    model.discard ? 'discard' : '',
+  ].join('|');
 }
 
 /**
@@ -379,6 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.overlayScrim,
     justifyContent: 'center',
   },
+  overlayCard: { flexShrink: 1 },
   overlayInner: {
     margin: tokens.space.l,
     padding: tokens.space.l,

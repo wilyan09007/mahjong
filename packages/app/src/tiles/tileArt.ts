@@ -1,7 +1,7 @@
 /**
  * The artwork for every one of the 42 distinct tile faces.
  *
- * A face is a self-contained SVG string drawn in a shared 300×420 box. The
+ * A face is a self-contained SVG string, all shown through one shared box. The
  * spec treats a theme as a swappable asset pack, and this is the tile-face
  * part of one: a new set of faces is a new generated file of the same shape,
  * swapped in at `TILE_ART`, with no rendering code touched.
@@ -22,8 +22,12 @@ export interface TileArt {
   xml: string;
 }
 
-/** Every face in a pack is drawn in this box. */
-export const ART_VIEWBOX = { w: 300, h: 420 } as const;
+/**
+ * The box every face is shown through: the artist's 300×420 page cropped to
+ * where the drawing actually is, so a face fills its tile instead of floating
+ * in its own margin. Set by `scripts/build-tile-art.mjs`.
+ */
+export const ART_VIEWBOX = { x: 16, y: 22, w: 268, h: 376 } as const;
 
 /** The faces the app draws. */
 export const TILE_ART: Record<TileKind, TileArt> = TAIWAN_ART;

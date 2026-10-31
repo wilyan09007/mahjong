@@ -63,14 +63,19 @@ that created a room. Only the image layer is unproven.
 
 ## Roadmap
 
-### Plan 3 Task 9 — animation and polish pass
-**Priority:** P2
-Reanimated is installed and configured but **no animations are implemented**.
-Deal-in stagger, draw slide-in, discard flight to the pond, claim pulse, win
-overlay flip-up, turn-indicator easing. Deliberately deferred: animation is
-tuned against a running app, and there was none to tune against. The spec's bar
-is "polish is rendering + motion", so this is real remaining v1 scope, not gold
-plating.
+### Animation — what is left after the first pass
+**Priority:** P3
+The first motion pass shipped in v0.2.10.0: deal cascade, draw drop-in, discard
+landing from the thrower's side, meld lay-down, selection lift and halo, press
+dip, turn glow, call-out stamps (碰 槓 吃 花 胡 自摸 流局), and the result sheet
+waiting for the win. Replay any of it from `/dev-gallery`. Still open:
+- **Frame rate on a real phone.** Only judged on Expo web. A table holds ~140
+  tiles; if a mid-range Android drops frames during the deal, stagger fewer
+  tiles at once before simplifying the tile body.
+- **A true flight from hand to pond.** A discard lands in the pond from the
+  thrower's side rather than travelling from the exact tile you tapped, which
+  needs measured layouts. Worth it once ponds sit by seat (see the P2 above).
+- **Sound.** Tile clacks on discard and claim would do as much as the motion.
 
 ### v1.1 — Cantonese variant
 **Priority:** P4
@@ -91,6 +96,16 @@ engine), but any rule that changes *legality* — whether a discard may be robbe
 table-specific tai values — needs a home in `HandRules` or the `Variant`.
 
 ## packages/server
+
+### Session and soak tests are bound to wall-clock speed
+**Priority:** P2
+`test/session.test.ts` and `test/soak.test.ts` play whole sessions inside a
+fixed loop (4000 and 6000 steps of `sleep(3)`), so on a slow or busy machine the session
+simply has not ended when the loop runs out — "the session never ended". Seen
+failing in about half of full runs in a cloud container, **with and without**
+the v0.2.10.0 app changes stashed (the server does not import the app). The fix
+is to wait on the `session-end` message with a generous deadline rather than
+counting iterations, not to raise the count.
 
 ### Colyseus core is pinned to 0.16.24 by a root pnpm override
 **Priority:** P3

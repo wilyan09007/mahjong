@@ -22,7 +22,19 @@ export const tokens = {
     /** Hairline where the surface meets the rim. Catches light, very faintly. */
     tableSurfaceEdge: 'rgba(255,255,255,0.06)',
     tileFace: '#F6F1E7',
-    tileFaceEdge: '#D9CFBB',
+    /** The ivory side of the tile, a shade under the face. */
+    tileFaceEdge: '#DDD2BC',
+    /** The green back as it shows along the bottom of a face-up tile. */
+    tileBackBand: '#2F7A57',
+    /** Light catching the top of a tile. Over ivory or green alike. */
+    tileSheen: 'rgba(255,255,255,0.34)',
+    /** The glow around a selected tile. */
+    tileHalo: 'rgba(222,183,92,0.55)',
+    /** Call-out stamps (碰, 槓, 胡…): red lacquer with a gold rim. */
+    calloutDisc: '#9B231C',
+    calloutGlyph: '#F8E7B5',
+    /** A hand nobody won gets a quiet stamp, not a celebration. */
+    calloutMuted: '#34453D',
     /**
      * Face-down tiles sit ON the felt, so this has to be legible against it.
      * The original #2E6B4F scored 1.23:1 against `tableFelt` — an opponent's 16
@@ -45,10 +57,10 @@ export const tokens = {
     surfaceRaised: '#1B5240',
   },
   /** Base tile geometry. Every rendered size scales from this aspect ratio. */
-  tile: { w: 44, h: 60, radius: 7, faceInset: 3, aspect: 44 / 60 },
+  /** Corner radius, bands and inset scale with size — see `tiles/tileGeometry.ts`. */
+  tile: { w: 44, h: 60, aspect: 44 / 60 },
   space: { xs: 4, s: 8, m: 16, l: 24, xl: 40 },
   radius: { s: 6, m: 12, l: 20 },
-  duration: { fast: 120, normal: 220, deal: 60, win: 600 },
   font: { cjk: 'NotoSerifTC_700Bold', ui: undefined },
   /** Minimum touch target. Below this, people miss on a moving table. */
   hitSlop: 44,

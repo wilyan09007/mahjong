@@ -71,6 +71,21 @@ export const strings = {
   leave: 'Leave table',
   sessionComplete: 'Session complete',
 
+  /**
+   * The call stamped on the table when someone claims, wins or reveals a
+   * flower. Kept in Chinese in every locale: these are the words said aloud at
+   * a real table, and players recognise them faster than any translation.
+   */
+  callout: {
+    chow: '吃',
+    pung: '碰',
+    kong: '槓',
+    flower: '花',
+    win: '胡',
+    selfDraw: '自摸',
+    exhausted: '流局',
+  },
+
   // Generic
   reconnecting: 'Reconnecting…',
   dismiss: 'Dismiss',

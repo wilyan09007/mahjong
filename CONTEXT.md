@@ -38,7 +38,7 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (357 tests,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (385 tests,
 `pnpm test` and `pnpm typecheck` green).
 
 The app has been **played end to end on Expo web at phone-landscape size**
@@ -69,8 +69,12 @@ cd packages/app
 EXPO_PUBLIC_SERVER_URL=http://localhost:2567 npx expo start --web --port 8090
 ```
 
-`/dev-gallery` shows all 42 faces at every size — the screen the art gets
-judged on.
+`/dev-gallery` replays every motion from buttons and shows all 42 faces at
+every size — the screen the art and the motion get judged on.
+
+**Expo with `CI=1` does not watch files.** A server started that way keeps
+serving the bundle it started with, so restart it after every edit (with
+`--clear`) or you will be judging old code.
 
 | File | Status | What it is |
 |---|---|---|
@@ -239,7 +243,7 @@ Measured at 181 wins / 19 draws per 200 bot-vs-bot hands (random play: 0/200).
 
 ## 6. `packages/app` — Expo React Native client (Plan 3) ✅ code, ⚠️ unverified on device
 
-**Built, unit-tested (106 tests), and PLAYED end to end on Expo web** against a
+**Built, unit-tested (134 tests), and PLAYED end to end on Expo web** against a
 live server with three bots — which found and fixed five visual bugs no unit
 test caught (see the v0.2.1.0 changelog). Still never run on a real Android
 device or emulator: touch targets, landscape lock, frame rate and on-phone
@@ -255,8 +259,9 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 | `src/tiles/tileArt.ts` | ✅ | `TILE_ART`, `TileArt`, `ART_VIEWBOX` | The 42 tile faces as artwork: each a self-contained SVG string in a shared 300×420 box, with the artist's own `label`. `TILE_ART` is the active pack, so a new set of faces is a new generated file of the same shape swapped in here — the tile-face half of the spec's "theme is an asset pack". The default pack is samoheen's Taiwan set (public domain, CC0), picked because it is the only freely usable set drawn for Taiwanese mahjong with all 42 faces, flowers and seasons included. |
 | `src/tiles/art/taiwan.generated.ts` | ✅ | `TAIWAN_ART` | **Generated — never edit.** Built by `scripts/build-tile-art.mjs` from `assets/tiles/taiwan/*.svg`, which are kept exactly as published (with their `LICENSE.md`). The script maps each file to its engine tile code, strips titles/ids, and flattens the self-masked 西 and 北 to a plain path, because masks, `<use>` and ids are where react-native-svg's platforms disagree and a repeated id collides on a web page. `test/tileArt.test.ts` checks every tile got the file drawn for it (by `label`) and that no face uses those features. |
 | `src/tiles/TileFace.tsx` | ✅ | `TileFace` | Renders one face from `TILE_ART` through `SvgXml`, scaled to any width without stretching. |
-| `src/tiles/Tile.tsx` | ✅ | `Tile` | Tile body: ivory face, ivory bottom edge for depth, gold border when selected, `tileBack` when face-down. The depth strip is ivory whichever way the tile faces — the body is ivory and only the back is coloured; drawn in dark felt it read as a shadow eating the bottom off every tile across the table. `lift` controls whether a selected tile also rises: true in hand, false in a pond, where lifting pushed it behind the row above and clipped it. |
-| `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `pondColumns`, `OpponentPanel`, `exposedTiles`, `TableStatus`, `LastDiscard`, `handTileWidth`, `SeatCard` | The board pieces. A concealed kong shows two backs and two faces, as it is laid on a real table. An opponent's exposed melds and flowers render **beside** their concealed tiles, never below: stacked under them the top seat's panel overflowed its zone and `overflow: hidden` erased the melds outright, hiding the strongest read you get on another player. A side seat's exposed melds render through `exposedTiles` as a fixed-width grid of `mini` tiles, never `MeldGroup` — a meld is a non-wrapping row and overflows a `maxWidth` box instead of shrinking, which put one seat's melds off-screen and another's across the felt. Their concealed tiles are real `mini` tile backs — the same the top seat uses — LAID DOWN (wider than tall) in TWO columns, none overlapping. Those players' tiles face THEM, so from your seat they are turned ninety degrees; the top seat's really do face you and stay upright. Laying them down is also what removes the overlap — upright they are 24.5px each and nine never fit the rail, laid down they are 13px and two columns of nine fit whole. Each carries a line along its top edge, without which green backs overlapping green backs draw one solid column. Grouped in fours — an unbroken column of 17 identical bars cannot be counted, and their count also shows as a number by the name. |
+| `src/tiles/tileGeometry.ts` | ✅ | `tileGeometry`, `TileGeometry` | How a tile of a given size divides up: corner radius, the ivory and green thickness bands along the bottom, the face inset and the box the art fits in. All proportional — a fixed 7px radius was a fifth of a 36px tile and made the set look like sweets. `test/tileGeometry.test.ts` pins radius ≤ 13% of width, art covering ≥ 76% of it, and bands that never vanish or exceed 12% of the height. |
+| `src/tiles/Tile.tsx` | ✅ | `Tile`, `TileEntrance` | A tile as a physical object, and every tile's motion. Face up: ivory face, then the tile's thickness along the bottom — ivory body over green back — with a faint sheen across the top. Face down: green back, ivory edge (the edge turned toward you is the lit one, so it stays ivory; drawn dark it read as a shadow eating the bottom off every tile across the table). Motion via Reanimated: selected tiles rise on a spring with a gold halo (`lift` false in ponds, where rising clipped the tile behind the row above); a pressed tile dips; `entrance` (deal/draw/discard/meld) plays once on mount from `entrancePose`. Under reduced motion everything snaps to rest. Exposes `accessibilityState.selected`. |
+| `src/components/Board.tsx` | ✅ | `HandRow`, `MeldGroup`, `DiscardPond`, `pondColumns`, `OpponentPanel`, `exposedTiles`, `TableStatus`, `LastDiscard`, `handTileWidth`, `SeatCard` | The board pieces. Each takes its slice of the motion plan: `HandRow.entrances` (deal/draw by index; tiles keyed by occurrence `5t#1` so a draw mounts only the newcomer, and the rest glide aside on a layout spring; with two of a kind only the tapped copy lifts), `DiscardPond.enterLast`, `MeldGroup.freshLast`, `OpponentPanel.dealing`/`freshMeld`, `LastDiscard.entrance`; the on-turn opponent gets a breathing `TurnGlow`. A concealed kong shows two backs and two faces, as it is laid on a real table. An opponent's exposed melds and flowers render **beside** their concealed tiles, never below: stacked under them the top seat's panel overflowed its zone and `overflow: hidden` erased the melds outright, hiding the strongest read you get on another player. A side seat's exposed melds render through `exposedTiles` as a fixed-width grid of `mini` tiles, never `MeldGroup` — a meld is a non-wrapping row and overflows a `maxWidth` box instead of shrinking, which put one seat's melds off-screen and another's across the felt. Their concealed tiles are real `mini` tile backs — the same the top seat uses — LAID DOWN (wider than tall) in TWO columns, none overlapping. Those players' tiles face THEM, so from your seat they are turned ninety degrees; the top seat's really do face you and stay upright. Laying them down is also what removes the overlap — upright they are 24.5px each and nine never fit the rail, laid down they are 13px and two columns of nine fit whole. Each carries a line along its top edge, without which green backs overlapping green backs draw one solid column. Grouped in fours — an unbroken column of 17 identical bars cannot be counted, and their count also shows as a number by the name. |
 | `src/components/Controls.tsx` | ✅ | `Button`, `ActionBar`, `EmotePicker`, `ErrorToast`, `ClaimCountdown` | Buttons come straight from `actionBarModel`, so one exists iff the server would accept it. |
 | `src/state/tableLayout.ts` | ✅ | `edgeFor`, `discardGrid`, `isVerticalEdge`, `rotationFor` | Pure seat→edge and pond-grid maths. I am always at the bottom of my own screen. |
 | `src/state/selectors.ts` | ✅ | `canStart`, `actionBarModel`, `formatResult`, `rankStandings`, `medalFor`, `seatLabel` | Pure view-model derivations — every branching decision a screen makes, testable without a renderer. |
@@ -267,13 +272,21 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 | `src/net/deviceId.ts` | ✅ | `getDeviceId`, `getDisplayName`, `setDisplayName` | AsyncStorage-persisted device identity. No accounts in v1. |
 | `app/_layout.tsx` | ✅ | — | Holds the splash until the CJK font (`tokens.font.cjk`) loads. Tile faces no longer use it — they are vector art — so nothing currently draws with it. Renders the stack **headerless**: 64px of chrome is 18% of a landscape phone, and every screen carries its own title and its own way out. |
 | `app/index.tsx` · `lobby.tsx` · `table.tsx` · `results.tsx` · `join/[code].tsx` | ✅ | — | The four screens plus the `mahjong://join/CODE` deep link. The table is built from fixed zones: `TABLE_ZONES.top` for the seat across from you, `.bottom` for your hand and the strip under it, `.side` for the rim the left and right players sit at, `.railTop` for where their rails begin (they are NOT confined to the middle band — the top zone's corners are dead space). The felt between those zones is a separate inset `surface` view, a shade lighter than the rim, which is what gives the table depth. Action buttons are NOT in the bottom zone — they stack up the right-hand side above the hand. Reading down the bottom zone: completed melds, the hand, then a strip holding flowers on the left and emotes on the right. `TableStatus` (wind, wall count, turn) sits in the top-left corner of the SCREEN — not the middle, where it competed with the ponds for the same glance, and not the surface's corner, which is still inside the play area. |
-| `app/dev-gallery.tsx` | ✅ | — | All 42 faces at every size, plus melds. **This is the screen the art and the opponent panels get judged on** — tests prove each tile carries the right face, but only an eye can say whether 22px 九萬 is legible. |
+| `app/dev-gallery.tsx` | ✅ | — | A motion stage with a button per effect (deal, draw, discard from each side, meld, every call-out), then all 42 faces at every size, plus melds and opponent panels. **This is the screen the art and the motion get judged on** — tests prove each tile carries the right face and each entrance starts invisible, but only an eye can say whether 22px 九萬 is legible or a pung lands with weight. |
+| `src/theme/motion.ts` | ✅ | `MOTION`, `entrancePose`, `dealDelay`, `EntranceKind`, `Pose` | Every spring, distance and duration the table moves with — the motion half of a theme. `entrancePose` gives each entrance's start (always opacity 0, so nothing flashes at rest first; discards come from the thrower's side). Pinned by `test/motion.test.ts`, including that the deal finishes inside a second and the result sheet waits for the win stamp to lift. |
+| `src/state/tableEvents.ts` | ✅ | `tableEvents`, `addedIndices`, `TableEvent` | The server sends whole positions; this compares the previous view with the new one and names what happened: deal, my draw (by index into the sorted hand), each discard, claims (incl. a pung upgraded to a kong), flowers, the win, an exhausted wall. A reconnect mid-hand is not a deal. Tested against real engine play, never fixtures. |
+| `src/state/motionPlan.ts` | ✅ | `planMotion`, `MotionPlan`, `Callout` | Events → what moves: hand entrances, `dealing`, each seat's newest-discard entrance and direction, fresh melds, and call-outs (碰 槓 吃 花 胡 自摸 流局; flowers revealed in the deal are not called). The table screen holds no animation logic of its own. |
+| `src/components/Motion.tsx` | ✅ | `Appear`, `TurnGlow`, `Callout` | Non-tile motion. `Callout` is a red-lacquer seal stamped in front of the caller with a gold ripple; a win is centred, larger, throws sparks and dims the table for a beat. Its hold-then-fade runs even under reduced motion — it is information, and on web `useReducedMotion` can report false while Reanimated still skips animations, which once hid it instantly. |
 
 **Testing note (hard-won):** all component tests live in ONE file and never call
 `unmount()`, and every `fireEvent` is awaited. RNTL 14's `fireEvent` is async
 (un-awaited it corrupts the renderer via overlapping `act()`), and its renderer
 root leaks across test *files* in a reused Jest worker. Both faults present as
 tests that pass alone and fail in a full run.
+
+Reanimated runs under Jest through the worklets mock its maintainers ship
+(`test/setup.ts`); animations jump to their end values there, so tests check
+what mounts and what is selected, never mid-flight positions.
 
 Screens, from the spec:
 

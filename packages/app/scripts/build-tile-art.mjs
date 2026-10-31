@@ -30,6 +30,15 @@ const NAMED = {
 };
 const SUIT = { characters: 'w', circles: 't', bamboos: 'b' };
 
+/**
+ * The artist draws every face in a 300×420 box, but the drawing itself only
+ * spans x 22.5–277.5, y 28.5–390.2 across all 42 (measured from the published
+ * PNGs). Left as is, that margin plus the tile body's own made the faces look
+ * like miniatures, so each face is re-boxed to the union with a few units' air.
+ * Keep in step with `ART_VIEWBOX` in src/tiles/tileArt.ts.
+ */
+const CROP = '16 22 268 376';
+
 function codeFor(file) {
   const name = file.replace(/^\d+-/, '').replace(/\.svg$/, '');
   const suited = /^(characters|circles|bamboos)-([1-9])$/.exec(name);
@@ -57,7 +66,9 @@ function clean(svg, file) {
     .replace(/<desc[^>]*>.*?<\/desc>/s, '')
     .replace(/ (id|aria-labelledby|role)="[^"]*"/g, '')
     // The size is set where the face is drawn, so the root <svg> keeps only its viewBox.
-    .replace(/^<svg[^>]*>/, (tag) => tag.replace(/ (width|height)="[^"]*"/g, ''))
+    .replace(/^<svg[^>]*>/, (tag) => tag
+      .replace(/ (width|height)="[^"]*"/g, '')
+      .replace(/viewBox="0 0 300 420"/, `viewBox="${CROP}"`))
     .replace(/\s+/g, ' ')
     .trim();
   return { label, xml };

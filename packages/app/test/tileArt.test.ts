@@ -48,8 +48,9 @@ describe('TILE_ART', () => {
     for (const kind of ALL_KINDS) {
       const { xml } = TILE_ART[kind];
       assertThat(xml.startsWith('<svg'), `${kind}: art is not an <svg> element`);
-      assertThat(xml.includes(`viewBox="0 0 ${ART_VIEWBOX.w} ${ART_VIEWBOX.h}"`),
-        `${kind}: art is not drawn in the shared ${ART_VIEWBOX.w}×${ART_VIEWBOX.h} box`);
+      const { x, y, w, h } = ART_VIEWBOX;
+      assertThat(xml.includes(`viewBox="${x} ${y} ${w} ${h}"`),
+        `${kind}: art is not shown through the shared ${w}×${h} box`);
       assertThat(xml.includes('<path'), `${kind}: art has no shapes`);
       // Masks, <use> and ids are where renderers disagree, and an id repeated
       // by two copies of the same tile on one web page makes them collide.

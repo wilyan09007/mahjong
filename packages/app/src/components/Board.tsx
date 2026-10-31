@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind } from '@mahjong/engine';
-import { Tile } from '../tiles/Tile';
+import { Tile, type TileEntrance } from '../tiles/Tile';
+import { TurnGlow } from './Motion';
+import { dealDelay } from '../theme/motion';
 import {
   COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, sideStackColumns, tileHeight, tokens,
 } from '../theme/tokens';
@@ -22,9 +25,26 @@ export function handTileWidth(available: number, count: number): number {
   return Math.max(20, Math.min(TILE_SIZES.hand, perTile));
 }
 
+/**
+ * React keys for a sorted hand: each tile with its occurrence, `5t#0`, `5t#1`.
+ * Keyed by position, every tile after a newly drawn one changed key and was
+ * rebuilt; keyed like this only the newcomer mounts, and the rest slide aside.
+ */
+function occurrenceKeys(tiles: TileKind[]): string[] {
+  const seen = new Map<TileKind, number>();
+  return tiles.map((t) => {
+    const n = seen.get(t) ?? 0;
+    seen.set(t, n + 1);
+    return `${t}#${n}`;
+  });
+}
+
+/** Tiles making room for a newcomer glide over rather than jumping. */
+const HAND_REFLOW = LinearTransition.springify().damping(18).stiffness(220);
+
 /** My concealed hand. Tap to select, tap the selected tile again to discard. */
 export function HandRow({
-  tiles, selectedTile, onSelect, onDiscard, disabled, available,
+  tiles, selectedTile, onSelect, onDiscard, disabled, available, entrances,
 }: {
   tiles: TileKind[];
   selectedTile: TileKind | null;
@@ -33,27 +53,48 @@ export function HandRow({
   disabled: boolean;
   /** Width the hand may occupy, already excluding the action gutter. */
   available?: number;
+  /** Tiles to animate in, by index: the opening deal, or the tile just drawn. */
+  entrances?: Record<number, TileEntrance>;
 }): React.ReactElement {
   const width = available === undefined
     ? TILE_SIZES.hand
     : handTileWidth(available, tiles.length);
+  const keys = occurrenceKeys(tiles);
+  // Selection is by tile kind (that is what a discard names), but with two of
+  // a kind only the one actually tapped should rise. Remembered by key, which
+  // survives the hand re-sorting; if it goes stale, the first copy stands in.
+  const [tapped, setTapped] = useState<string | null>(null);
+  const liftedKey = selectedTile === null ? null
+    : tapped !== null && tapped.startsWith(`${selectedTile}#`) && keys.includes(tapped)
+      ? tapped
+      : `${selectedTile}#0`;
   return (
     <View style={styles.handRow}>
       {tiles.map((tile, i) => (
-        <View key={`${tile}-${i}`} style={styles.handTile}>
+        <Animated.View key={keys[i]} style={styles.handTile} layout={HAND_REFLOW}>
           <Tile
             tile={tile}
             size="hand"
             width={width}
-            selected={selectedTile === tile}
+            selected={keys[i] === liftedKey}
             disabled={disabled}
-            onPress={() => (selectedTile === tile ? onDiscard(tile) : onSelect(tile))}
+            entrance={entrances?.[i]}
+            onPress={() => {
+              setTapped(keys[i]!);
+              if (selectedTile === tile) onDiscard(tile);
+              else onSelect(tile);
+            }}
             testID={`hand-tile-${tile}-${i}`}
           />
-        </View>
+        </Animated.View>
       ))}
     </View>
   );
+}
+
+/** Each tile of a meld just laid down rises into place, one after another. */
+function meldEntrance(i: number): TileEntrance {
+  return { kind: 'meld', delay: i * 60 };
 }
 
 /**
@@ -61,21 +102,26 @@ export function HandRow({
  * it is laid on a real table — you can see it is a kong without seeing which.
  */
 export function MeldGroup({
-  melds, size = 'meld',
+  melds, size = 'meld', freshLast = false,
 }: {
   melds: Meld[];
   size?: 'meld' | 'mini';
+  /** The last meld was just claimed: lay it down with a flourish. */
+  freshLast?: boolean;
 }): React.ReactElement {
   return (
     <View style={styles.meldRow}>
       {melds.map((meld, m) => (
-        <View key={m} style={styles.meld}>
+        // Keyed by size too: an added kong turns a three-tile meld into four,
+        // and that should replay its entrance rather than tack a tile on.
+        <View key={`${m}-${meld.tiles.length}`} style={styles.meld}>
           {meld.tiles.map((tile, i) => (
             <Tile
               key={`${tile}-${i}`}
               tile={tile}
               size={size}
               faceUp={!(meld.concealed && meld.type === 'kong' && (i === 0 || i === 3))}
+              entrance={freshLast && m === melds.length - 1 ? meldEntrance(i) : undefined}
             />
           ))}
         </View>
@@ -93,10 +139,12 @@ export function MeldGroup({
  * scrolling column.
  */
 export function DiscardPond({
-  tiles, highlightLast = false, perRow = DISCARDS_PER_ROW,
+  tiles, highlightLast = false, perRow = DISCARDS_PER_ROW, enterLast,
 }: {
   tiles: TileKind[];
   highlightLast?: boolean;
+  /** The newest tile was just thrown: land it like this. */
+  enterLast?: TileEntrance;
   /** Tiles per row. Narrower screens use fewer so all four ponds stay side by
    *  side; wrapping the ponds themselves pushed them into the side seats. */
   perRow?: number;
@@ -110,6 +158,7 @@ export function DiscardPond({
           size="discard"
           selected={highlightLast && i === tiles.length - 1}
           lift={false}
+          entrance={i === tiles.length - 1 ? enterLast : undefined}
         />
       ))}
     </View>
@@ -142,13 +191,14 @@ const MINI_PITCH = TILE_SIZES.mini + 1;
  */
 export function exposedTiles(
   opponent: Pick<OpponentView, 'melds' | 'flowers'>,
-): { tile: TileKind; faceUp: boolean }[] {
+): { tile: TileKind; faceUp: boolean; meld: number | null }[] {
   return [
-    ...opponent.melds.flatMap((meld) => meld.tiles.map((tile, i) => ({
+    ...opponent.melds.flatMap((meld, m) => meld.tiles.map((tile, i) => ({
       tile,
       faceUp: !(meld.concealed && meld.type === 'kong' && (i === 0 || i === 3)),
+      meld: m,
     }))),
-    ...opponent.flowers.map((tile) => ({ tile, faceUp: true })),
+    ...opponent.flowers.map((tile) => ({ tile, faceUp: true, meld: null })),
   ];
 }
 
@@ -164,11 +214,18 @@ export function exposedTiles(
  * Grouped in fours regardless, because a run of seventeen identical backs is
  * the one thing an eye cannot count.
  */
-function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.ReactElement {
+function ConcealedTiles({ count, edge, dealing }: {
+  count: number;
+  edge: Edge;
+  /** A new hand: the backs cascade in alongside my own tiles. */
+  dealing: boolean;
+}): React.ReactElement {
+  const deal = (i: number): TileEntrance | undefined =>
+    dealing ? { kind: 'deal', delay: dealDelay(i) } : undefined;
   if (isVerticalEdge(edge)) {
     return (
       <View style={styles.sideStack}>
-        {sideStackColumns(count).map((inColumn, c) => (
+        {sideStackColumns(count).map((inColumn, c, columns) => (
           <View key={c} style={styles.sideStackColumn}>
             {Array.from({ length: inColumn }, (_, i) => (
               <View
@@ -184,6 +241,7 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
                   width={SIDE_STACK.tileWidth}
                   landscape
                   faceUp={false}
+                  entrance={deal(columns.slice(0, c).reduce((n, k) => n + k, 0) + i)}
                   testID="side-tile"
                 />
               </View>
@@ -199,7 +257,7 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
   return (
     <View style={[styles.backs, { maxWidth: 18 * MINI_PITCH }]}>
       {Array.from({ length: count }, (_, i) => (
-        <Tile key={i} tile="1w" size="mini" faceUp={false} />
+        <Tile key={i} tile="1w" size="mini" faceUp={false} entrance={deal(i)} />
       ))}
     </View>
   );
@@ -224,13 +282,17 @@ function ConcealedTiles({ count, edge }: { count: number; edge: Edge }): React.R
  * Alongside is also where melds are laid on a real table.
  */
 export function OpponentPanel({
-  opponent, edge, isTurn, connected, name,
+  opponent, edge, isTurn, connected, name, dealing = false, freshMeld = false,
 }: {
   opponent: OpponentView;
   edge: Edge;
   isTurn: boolean;
   connected: boolean;
   name: string;
+  /** A new hand is being dealt. */
+  dealing?: boolean;
+  /** Their last meld was just claimed. */
+  freshMeld?: boolean;
 }): React.ReactElement {
   const sideways = isVerticalEdge(edge);
   const hasExposed = opponent.melds.length > 0 || opponent.flowers.length > 0;
@@ -240,20 +302,29 @@ export function OpponentPanel({
   const exposed = hasExposed ? (
     sideways ? (
       <View style={styles.exposedBeside}>
-        {flattened.map(({ tile, faceUp }, i) => (
-          <Tile key={`${tile}-${i}`} tile={tile} size="mini" faceUp={faceUp} />
+        {flattened.map(({ tile, faceUp, meld }, i) => (
+          <Tile
+            key={`${tile}-${i}`}
+            tile={tile}
+            size="mini"
+            faceUp={faceUp}
+            entrance={freshMeld && meld === opponent.melds.length - 1
+              ? meldEntrance(i - flattened.findIndex((t) => t.meld === meld))
+              : undefined}
+          />
         ))}
       </View>
     ) : (
       <View style={styles.exposedInline}>
-        <MeldGroup melds={opponent.melds} size="mini" />
+        <MeldGroup melds={opponent.melds} size="mini" freshLast={freshMeld} />
         {opponent.flowers.map((f, i) => <Tile key={`${f}-${i}`} tile={f} size="mini" />)}
       </View>
     )
   ) : null;
 
   return (
-    <View style={[styles.opponent, isTurn && styles.opponentTurn]}>
+    <View style={styles.opponent}>
+      {isTurn && <TurnGlow radius={tokens.radius.m} />}
       <View style={styles.opponentHeader}>
         <Text style={styles.opponentName} numberOfLines={1}>{name}</Text>
         {/* The side stacks are 4px slivers. Grouping them in fours makes them
@@ -269,11 +340,11 @@ export function OpponentPanel({
         // toward the middle; on the right seat, un-mirrored, they were shoved
         // out against the bezel while the left seat's sat neatly inboard.
         <View style={[styles.sideBody, edge === 'right' && styles.sideBodyMirrored]}>
-          <ConcealedTiles count={opponent.handCount} edge={edge} />
+          <ConcealedTiles count={opponent.handCount} edge={edge} dealing={dealing} />
           {exposed}
         </View>
       ) : (
-        <ConcealedTiles count={opponent.handCount} edge={edge} />
+        <ConcealedTiles count={opponent.handCount} edge={edge} dealing={dealing} />
       )}
     </View>
   );
@@ -310,12 +381,27 @@ export function TableStatus({ view, seatNames }: {
   );
 }
 
-/** The tile just thrown, alone in the middle of the table where it landed. */
-export function LastDiscard({ view }: { view: PlayerView }): React.ReactElement | null {
+/**
+ * The tile just thrown, alone in the middle of the table where it landed.
+ * Remounted per throw (keyed by who threw what, and how many tiles are down),
+ * so each one lands afresh from its thrower's side.
+ */
+export function LastDiscard({ view, entrance }: {
+  view: PlayerView;
+  entrance?: TileEntrance;
+}): React.ReactElement | null {
   if (!view.lastDiscard) return null;
+  const thrown = view.discards.length + view.opponents.reduce((n, o) => n + o.discards.length, 0);
   return (
     <View style={styles.lastDiscard}>
-      <Tile tile={view.lastDiscard.tile} size="discard" selected lift={false} />
+      <Tile
+        key={`${view.lastDiscard.by}-${view.lastDiscard.tile}-${thrown}`}
+        tile={view.lastDiscard.tile}
+        size="discard"
+        selected
+        lift={false}
+        entrance={entrance}
+      />
     </View>
   );
 }
@@ -369,7 +455,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  opponentTurn: { borderColor: tokens.color.accentGold },
   opponentHeader: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
   opponentName: { color: tokens.color.textOnFelt, fontSize: 13, fontWeight: '600' },
   covering: { color: tokens.color.accentGold, fontSize: 11 },

@@ -31,3 +31,9 @@ jest.mock('expo-crypto', () => ({
   __esModule: true,
   randomUUID: () => '00000000-0000-4000-8000-000000000000',
 }));
+
+// Reanimated's worklet runtime is a native module with no Node implementation,
+// the same situation as the Expo modules above. Its own maintainers ship this
+// stand-in for Jest; animations jump straight to their end values under it.
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
+require('react-native-reanimated').setUpTests();

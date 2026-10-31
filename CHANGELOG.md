@@ -4,6 +4,41 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.10.0] - 2026-10-31
+
+### Added
+
+- **The table moves.** The opening deal cascades in across all four seats; a
+  drawn tile drops into its place while the rest of the hand glides aside; a
+  discard lands in the pond from the thrower's side of the table; a claimed
+  meld rises into place tile by tile; whoever is on turn gets a slow breathing
+  gold ring. A selected tile rises on a spring with a gold halo, and a pressed
+  tile dips like a key. Every motion snaps to rest under the OS's
+  reduced-motion setting.
+- **Call-outs.** 碰, 槓, 吃, 花, 胡, 自摸 and 流局 are stamped in front of whoever
+  made the call, as a red-lacquer seal with a gold ripple. A win is centred and
+  larger, throws sparks and dims the table for a beat, and the result sheet now
+  waits for it to lift instead of covering it.
+- `/dev-gallery` opens with a motion stage: a button per effect, so each can
+  be replayed and judged without playing a hand.
+- `tableEvents` (what changed between two views), `planMotion` (what should
+  move) and `motion.ts` (every spring and duration), each with tests driven by
+  real engine play.
+
+### Changed
+
+- **Tiles look like tiles, not miniatures.** The art is shown through a box
+  cropped to the drawing (it carried ~15% blank margin), the corner radius is
+  11% of the tile instead of a fixed 7px, and the bottom edge now shows the
+  tile's thickness: an ivory band over the green back.
+- With two of a kind in hand, only the tile you tapped lifts.
+
+### Fixed
+
+- A call-out under reduced motion vanished the instant it appeared: Reanimated
+  skips delays to their end under that setting, so the hold-then-fade now runs
+  in full regardless.
+
 ## [0.2.9.0] - 2026-10-31
 
 ### Changed

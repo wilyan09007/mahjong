@@ -6,6 +6,8 @@ import { TileFace } from '../src/tiles/TileFace';
 import { Tile } from '../src/tiles/Tile';
 import { ActionBar } from '../src/components/Controls';
 import { exposedTiles, HandRow, OpponentPanel } from '../src/components/Board';
+import { Callout } from '../src/components/Motion';
+import type { EntranceKind } from '../src/theme/motion';
 import { sideStackColumns } from '../src/theme/tokens';
 import { actionBarModel } from '../src/state/selectors';
 import { FLOWERS, NON_FLOWER_KINDS, newHand, viewFor } from '@mahjong/engine';
@@ -447,5 +449,69 @@ describe('OpponentPanel — a side seat must stay inside its rim', () => {
         },
       );
     }
+  });
+});
+
+
+describe('Motion', () => {
+  it('mounts a tile with every kind of entrance, from every side', async () => {
+    const kinds: EntranceKind[] = ['deal', 'draw', 'discard', 'meld'];
+    for (const kind of kinds) {
+      for (const from of ['bottom', 'right', 'top', 'left'] as const) {
+        await mounted(
+          <Tile tile="5t" entrance={{ kind, from, delay: 10 }} testID="entering" />,
+          (screen) => {
+            expect(screen.getByTestId('entering')).toBeTruthy();
+          },
+        );
+      }
+    }
+  });
+
+  it('still deals a whole hand that is animating in', async () => {
+    const hand = viewFor(newHand({ seed: 9, dealer: 0, dealerStreak: 0, roundWind: 'E' }), 0).hand;
+    const entrances = Object.fromEntries(hand.map((_, i) => [i, { kind: 'deal' as const, delay: i * 30 }]));
+    await mounted(
+      <HandRow tiles={hand} selectedTile={null} disabled={false} entrances={entrances}
+        onSelect={() => undefined} onDiscard={() => undefined} />,
+      (screen) => {
+        hand.forEach((tile, i) => expect(screen.getByTestId(`hand-tile-${tile}-${i}`)).toBeTruthy());
+      },
+    );
+  });
+
+  it('lifts only the tile you tapped when you hold two of a kind', async () => {
+    const hand: TileKind[] = ['1w', '5t', '5t', '9b'];
+    let picked: TileKind | null = null;
+    await mounted(
+      <HandRow tiles={hand} selectedTile={null} disabled={false}
+        onSelect={(t) => { picked = t; }} onDiscard={() => undefined} />,
+      async (screen) => {
+        await fireEvent.press(screen.getByTestId('hand-tile-5t-2'));
+        expect(picked).toBe('5t');
+        await screen.rerender(
+          <HandRow tiles={hand} selectedTile="5t" disabled={false}
+            onSelect={() => undefined} onDiscard={() => undefined} />,
+        );
+        const lifted = screen.getAllByRole('button', { selected: true });
+        expect(lifted).toHaveLength(1);
+        expect(lifted[0]!.props.accessibilityLabel).toBe('5t');
+        // ...and it is the second 5t, the one actually tapped.
+        expect(screen.getAllByRole('button').indexOf(lifted[0]!)).toBe(2);
+      },
+    );
+  });
+
+  it('stamps a call-out with the caller’s name, and a draw without one', async () => {
+    await mounted(<Callout text="碰" name="Ana" edge="right" />, (screen) => {
+      expect(screen.getByText('碰')).toBeTruthy();
+      expect(screen.getByText('Ana')).toBeTruthy();
+    });
+    await mounted(<Callout text="流局" name="" edge="bottom" big muted />, (screen) => {
+      expect(screen.getByText('流局')).toBeTruthy();
+    });
+    await mounted(<Callout text="自摸" name="Ana" edge="bottom" big />, (screen) => {
+      expect(screen.getByText('自摸')).toBeTruthy();
+    });
   });
 });

@@ -7,7 +7,7 @@ import { tokens, tileHeight } from '../theme/tokens';
 /**
  * Renders one tile face from `TILE_ART`.
  *
- * Vector art scaled to whatever width it is given, so one face serves the hand,
+ * Vector art scaled to whatever box it is given, so one face serves the hand,
  * a meld, the pond and an opponent's mini tiles without separate assets. The
  * art keeps its own proportions inside that box, so the face is never
  * stretched.
@@ -15,10 +15,12 @@ import { tokens, tileHeight } from '../theme/tokens';
 
 export interface TileFaceProps {
   tile: TileKind;
-  /** Rendered width in px. Height follows the tile aspect ratio. */
+  /** Rendered width in px. */
   size?: number;
+  /** Rendered height in px. Defaults to the tile aspect ratio of `size`. */
+  height?: number;
 }
 
-export function TileFace({ tile, size = tokens.tile.w }: TileFaceProps): React.ReactElement {
-  return <SvgXml xml={TILE_ART[tile].xml} width={size} height={tileHeight(size)} />;
+export function TileFace({ tile, size = tokens.tile.w, height }: TileFaceProps): React.ReactElement {
+  return <SvgXml xml={TILE_ART[tile].xml} width={size} height={height ?? tileHeight(size)} />;
 }
