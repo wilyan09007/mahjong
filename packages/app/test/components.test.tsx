@@ -504,6 +504,18 @@ describe('Motion', () => {
     );
   });
 
+  it('shows thinking dots by an opponent who may be deciding, and only then', async () => {
+    const opponent = viewFor(newHand({ seed: 4, dealer: 0, dealerStreak: 0, roundWind: 'E' }), 0).opponents[0];
+    await mounted(
+      <OpponentPanel opponent={opponent} edge="right" isTurn connected name="Bot 2" thinking />,
+      (screen) => { expect(screen.getByLabelText('thinking')).toBeTruthy(); },
+    );
+    await mounted(
+      <OpponentPanel opponent={opponent} edge="right" isTurn={false} connected name="Bot 2" />,
+      (screen) => { expect(screen.queryByLabelText('thinking')).toBeNull(); },
+    );
+  });
+
   it('stamps a call-out with the caller’s name, and a draw without one', async () => {
     await mounted(<Callout text="碰" name="Ana" edge="right" />, (screen) => {
       expect(screen.getByText('碰')).toBeTruthy();

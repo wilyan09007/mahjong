@@ -39,6 +39,8 @@ export const MOTION = {
     resultDelay: 1460,
     /** One breath of the gold ring around whoever is on turn. */
     turnPulse: 1400,
+    /** One rise and fall of a "thinking" dot. */
+    thinkingDot: 900,
   },
 } as const;
 

@@ -59,6 +59,38 @@ export function TurnGlow({ radius }: { radius: number }): React.ReactElement {
   );
 }
 
+/**
+ * Three dots rising and falling in turn: "this player is deciding". Shown by
+ * an opponent's name on their turn and through claim windows, so a bot's
+ * pause reads as thinking rather than as the game having stalled. Under
+ * reduced motion they stay still.
+ */
+export function ThinkingDots(): React.ReactElement {
+  return (
+    <View style={styles.dots} accessibilityLabel="thinking">
+      {[0, 1, 2].map((i) => <Dot key={i} index={i} />)}
+    </View>
+  );
+}
+
+function Dot({ index }: { index: number }): React.ReactElement {
+  const reduced = useReducedMotion();
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (reduced) return;
+    const half = MOTION.duration.thinkingDot / 2;
+    t.value = withDelay(index * (half / 2), withRepeat(withSequence(
+      withTiming(1, { duration: half, easing: Easing.inOut(Easing.quad) }),
+      withTiming(0, { duration: half, easing: Easing.inOut(Easing.quad) }),
+    ), -1));
+  }, [reduced, index, t]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.35 + 0.65 * t.value,
+    transform: [{ translateY: -2.5 * t.value }],
+  }));
+  return <Animated.View style={[styles.dot, style]} />;
+}
+
 /** Where a seat's call-out lands: in front of that player, toward the middle. */
 function anchorFor(edge: Edge, big: boolean): ViewStyle {
   if (big) return styles.anchorCentre;
@@ -188,6 +220,8 @@ function Spark({ angle, reach, delay }: { angle: number; reach: number; delay: n
 
 const styles = StyleSheet.create({
   turnGlow: { borderWidth: 2, borderColor: tokens.color.accentGold },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 2, height: 12 },
+  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: tokens.color.accentGold },
   hush: { backgroundColor: tokens.color.overlayScrim, opacity: 0 },
   anchor: { position: 'absolute', alignItems: 'center', justifyContent: 'center', gap: 4 },
   anchorRow: { left: 0, right: 0 },

@@ -4,6 +4,17 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.13.0] - 2026-10-31
+
+### Added
+
+- **Thinking dots.** Three gold dots rise and fall by the name of an opponent
+  who may be deciding: the player on turn, or — through a claim window — every
+  opponent except the one who threw the tile. Who can actually claim stays
+  hidden: each player's view only ever carries their own options, so the dots
+  mean "might be deciding", never "can claim". A bot's pause now reads as
+  thinking rather than as the game having stalled.
+
 ## [0.2.12.0] - 2026-10-31
 
 ### Changed

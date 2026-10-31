@@ -1,6 +1,6 @@
 import { assertThat } from './support';
 import {
-  actionBarModel, actionButtons, canStart, formatResult, medalFor, rankStandings,
+  actionBarModel, actionButtons, canStart, formatResult, medalFor, rankStandings, thinkingSeats,
 } from '../src/state/selectors';
 import { applyAction, legalActions, newHand, viewFor } from '@mahjong/engine';
 import type { GameState, PlayerView, Seat } from '@mahjong/engine';
@@ -240,5 +240,34 @@ describe('rankStandings', () => {
     expect(medalFor(2)).toBe('🥈');
     expect(medalFor(3)).toBe('🥉');
     expect(medalFor(4)).toBe('4');
+  });
+});
+
+
+describe('thinkingSeats', () => {
+  it('shows the player on turn as thinking while they choose a discard', () => {
+    const opening = newHand({ seed: 77, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+    // From seat 1's chair, the dealer (seat 0) is deciding what to throw.
+    expect(thinkingSeats(viewFor(opening, 1))).toEqual([0]);
+    // My own turn is not "someone else thinking".
+    expect(thinkingSeats(viewFor(opening, 0))).toEqual([]);
+  });
+
+  it('during a claim window, shows everyone who might still claim — never who can', () => {
+    // Whoever can claim is hidden information, so every opponent except the
+    // one who threw the tile gets the dots, whether they hold an option or not.
+    const rigged: GameState = newHand({ seed: 5, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+    const filler = [
+      '1w', '4w', '7w', '2t', '5t', '8t', '3b', '6b', '9b',
+      'we', 'ws', 'ww', 'wn', 'dr', 'dg', 'dw',
+    ] as PlayerView['hand'];
+    rigged.players[0].hand = [...filler.slice(0, 15), '3w'] as PlayerView['hand'];
+    rigged.players[1].hand = ['1w', '2w', '4w', '5w', ...filler.slice(3, 15)] as PlayerView['hand'];
+    rigged.players[2].hand = [...filler];
+    rigged.players[3].hand = [...filler];
+    const opened = applyAction(rigged, { type: 'discard', seat: 0, tile: '3w' });
+    expect(opened.phase).toBe('awaiting-claims');
+    expect(thinkingSeats(viewFor(opened, 2)).sort()).toEqual([1, 3]);
+    expect(thinkingSeats(viewFor(opened, 0)).sort()).toEqual([1, 2, 3]);
   });
 });

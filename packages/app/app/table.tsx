@@ -6,7 +6,7 @@ import { seatWind, type Action, type PlayerView, type Seat, type TileKind } from
 import { useGameStore } from '../src/state/store';
 import { playAction, send } from '../src/net/connection';
 import { C2S } from '../src/net/messages';
-import { actionBarModel, formatResult } from '../src/state/selectors';
+import { actionBarModel, formatResult, thinkingSeats } from '../src/state/selectors';
 import { FELT_INSET, edgeFor, feltSize, pondLayout } from '../src/state/tableLayout';
 import { tableEvents } from '../src/state/tableEvents';
 import { planMotion, type Callout as CalloutPlan, type MotionPlan } from '../src/state/motionPlan';
@@ -133,6 +133,8 @@ export default function TableScreen(): React.ReactElement {
     );
   }
 
+  const thinking = thinkingSeats(view);
+
   const dispatch = (action: Action): void => {
     setSelectedTile(null);
     playAction(action);
@@ -194,6 +196,7 @@ export default function TableScreen(): React.ReactElement {
               name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
               dealing={motion.dealing}
               freshMeld={!!motion.freshMeld[o.seat]}
+              thinking={thinking.includes(o.seat)}
             />
           ))}
       </View>
@@ -221,6 +224,7 @@ export default function TableScreen(): React.ReactElement {
                 name={seatNames[o.seat] ?? `Seat ${o.seat + 1}`}
                 dealing={motion.dealing}
                 freshMeld={!!motion.freshMeld[o.seat]}
+                thinking={thinking.includes(o.seat)}
               />
             ))}
         </View>

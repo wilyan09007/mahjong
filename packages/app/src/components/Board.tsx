@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import type { Meld, OpponentView, PlayerView, Seat, TileKind, Wind } from '@mahjong/engine';
 import { Tile, type TileEntrance } from '../tiles/Tile';
-import { TurnGlow } from './Motion';
+import { ThinkingDots, TurnGlow } from './Motion';
 import { dealDelay } from '../theme/motion';
 import {
   COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, sideStackColumns, tileHeight, tokens,
@@ -303,7 +303,7 @@ function ConcealedTiles({ count, edge, dealing }: {
  * Alongside is also where melds are laid on a real table.
  */
 export function OpponentPanel({
-  opponent, edge, isTurn, connected, name, dealing = false, freshMeld = false,
+  opponent, edge, isTurn, connected, name, dealing = false, freshMeld = false, thinking = false,
 }: {
   opponent: OpponentView;
   edge: Edge;
@@ -314,6 +314,8 @@ export function OpponentPanel({
   dealing?: boolean;
   /** Their last meld was just claimed. */
   freshMeld?: boolean;
+  /** They may be deciding something right now: dots by the name. */
+  thinking?: boolean;
 }): React.ReactElement {
   const sideways = isVerticalEdge(edge);
   const hasExposed = opponent.melds.length > 0 || opponent.flowers.length > 0;
@@ -348,6 +350,7 @@ export function OpponentPanel({
       {isTurn && <TurnGlow radius={tokens.radius.m} />}
       <View style={styles.opponentHeader}>
         <Text style={styles.opponentName} numberOfLines={1}>{name}</Text>
+        {thinking && <ThinkingDots />}
         {/* The side stacks are 4px slivers. Grouping them in fours makes them
             countable, but the number itself costs nothing and settles it. */}
         {sideways && <Text style={styles.handCount}>{opponent.handCount}</Text>}
