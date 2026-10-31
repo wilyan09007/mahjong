@@ -92,6 +92,14 @@ export function HandRow({
   );
 }
 
+/** The row above my hand that holds my completed sets (and the action buttons beside them). */
+export const MELD_ROW = 42;
+
+/** How wide `MeldGroup` draws these melds at `tile` px — what the action buttons must leave free. */
+export function meldRowWidth(melds: Meld[], tile: number = TILE_SIZES.meld): number {
+  return melds.reduce((w, m) => w + m.tiles.length * tile + tokens.space.s, 0);
+}
+
 /** Each tile of a meld just laid down rises into place, one after another. */
 function meldEntrance(i: number): TileEntrance {
   return { kind: 'meld', delay: i * 60 };

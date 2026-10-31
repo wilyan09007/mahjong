@@ -13,7 +13,7 @@ import { planMotion, type Callout as CalloutPlan, type MotionPlan } from '../src
 import { Appear, Callout } from '../src/components/Motion';
 import { MOTION } from '../src/theme/motion';
 import {
-  HandRow, MeldGroup, OpponentPanel, SeatPond, TableStatus,
+  HandRow, MELD_ROW, MeldGroup, OpponentPanel, SeatPond, TableStatus, meldRowWidth,
 } from '../src/components/Board';
 import { ActionBar, Button, EmotePicker, ErrorToast } from '../src/components/Controls';
 import { Tile } from '../src/tiles/Tile';
@@ -80,6 +80,9 @@ export default function TableScreen(): React.ReactElement {
   const { width, height } = useWindowDimensions();
   // The felt's real size once laid out; until then, what the insets predict.
   const [felt, setFelt] = useState<{ width: number; height: number } | null>(null);
+  // The width my hand and the row above it share: the whole screen, less its
+  // padding. Nothing sits beside the hand any more.
+  const rowWidth = width - 2 * tokens.space.s;
   const ponds = useMemo(() => pondLayout(felt ?? feltSize({ width, height })), [felt, width, height]);
   const motion = useTableMotion(view);
   const callouts = useCallouts(motion);
@@ -231,25 +234,43 @@ export default function TableScreen(): React.ReactElement {
       <View style={styles.bottom}>
         {/* Completed sets sit directly above my remaining tiles — they are part
             of the hand I am reading, so they belong next to it. */}
-        <View style={[styles.myMelds, styles.besideActions]}>
-          <MeldGroup melds={view.melds} freshLast={!!motion.freshMeld[view.seat]} />
+        {/* The row above my tiles: my completed sets on the left, the action
+            buttons on the right, side by side. The buttons hang from the
+            bottom of the row, so when a busy claim window will not fit one
+            line its extra rows rise over the felt — over my own discards, and
+            only for the seconds the window is open. */}
+        <View style={styles.aboveHand}>
+          <View style={styles.myMelds}>
+            <MeldGroup melds={view.melds} freshLast={!!motion.freshMeld[view.seat]} />
+          </View>
+          <View style={styles.actions} pointerEvents="box-none">
+            {/* Re-keyed whenever the set of choices changes, so new options pop
+                in rather than appearing — a pung offer has to catch the eye in
+                the second or two it is open. */}
+            <Appear key={actionSignature(model)}>
+              <ActionBar
+                model={model}
+                onAction={dispatch}
+                disabled={pendingAction}
+                available={rowWidth - meldRowWidth(view.melds) - tokens.space.s}
+              />
+            </Appear>
+          </View>
         </View>
-        <View style={styles.besideActions}>
-          <HandRow
-            tiles={view.hand}
-            available={width - 2 * tokens.space.s - TABLE_ZONES.actionGutter}
-            selectedTile={selectedTile}
-            entrances={motion.hand}
-            onSelect={setSelectedTile}
-            onDiscard={(tile) => {
-              const discard = view.legalActions.find(
-                (a) => a.type === 'discard' && a.tile === tile,
-              );
-              if (discard) dispatch(discard);
-            }}
-            disabled={pendingAction}
-          />
-        </View>
+        <HandRow
+          tiles={view.hand}
+          available={rowWidth}
+          selectedTile={selectedTile}
+          entrances={motion.hand}
+          onSelect={setSelectedTile}
+          onDiscard={(tile) => {
+            const discard = view.legalActions.find(
+              (a) => a.type === 'discard' && a.tile === tile,
+            );
+            if (discard) dispatch(discard);
+          }}
+          disabled={pendingAction}
+        />
         {/* The strip under the hand: flowers in the left corner, emotes in the
             right. Flowers only — they are scoring bookkeeping, not part of the
             hand you are reading. */}
@@ -262,19 +283,6 @@ export default function TableScreen(): React.ReactElement {
             disabled={pendingAction}
           />
         </View>
-      </View>
-
-      {/* Actions stack up the right-hand side, directly above the hand. They
-          used to sit centred under it, where they shared a line with the emote
-          row and the two overlapped. `box-none` so the empty column never
-          swallows a tap meant for the table underneath. */}
-      <View style={styles.actionStack} pointerEvents="box-none">
-        {/* Re-keyed whenever the set of choices changes, so new options pop in
-            rather than appearing — a pung offer has to catch the eye in the
-            second or two it is open. */}
-        <Appear key={actionSignature(model)}>
-          <ActionBar model={model} onAction={dispatch} disabled={pendingAction} vertical />
-        </Appear>
       </View>
 
       {/* Floating emote bubbles */}
@@ -417,11 +425,10 @@ const styles = StyleSheet.create({
   railLeft: { left: tokens.space.s },
   railRight: { right: tokens.space.s },
   bottom: { height: TABLE_ZONES.bottom, justifyContent: 'flex-end', gap: 2 },
-  // The hand and my melds are laid out in the width BESIDE the action stack,
-  // not across the whole screen. The hand was always sized to that width but
-  // centred on the full one, so on an 800px phone its last tiles sat under the
-  // Discard button — which then took the tap meant for the tile.
-  besideActions: { marginRight: TABLE_ZONES.actionGutter },
+  // My sets and the action buttons share the row above the hand. Its height is
+  // the melds'; the buttons are anchored to its floor and may rise past it.
+  aboveHand: { height: MELD_ROW, flexDirection: 'row', alignItems: 'flex-end' },
+  actions: { position: 'absolute', right: 0, bottom: 0 },
   // The band under the hand, which was empty felt.
   bottomStrip: {
     flexDirection: 'row',
@@ -429,11 +436,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: tokens.space.s,
   },
-  // Directly above the hand, centred over it: my completed sets.
+  // Above the hand, from the left: my completed sets. The buttons take the right.
   myMelds: {
     flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.s,
-    alignItems: 'flex-end', justifyContent: 'center',
-    maxHeight: 42, overflow: 'hidden',
+    alignItems: 'flex-end', justifyContent: 'flex-start',
+    maxHeight: MELD_ROW, overflow: 'hidden',
   },
   // Bottom-LEFT corner: flowers only, mini size, one row.
   myFlowers: {
@@ -442,8 +449,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end', justifyContent: 'flex-start',
     maxHeight: 30, overflow: 'hidden',
   },
-  // Bounded by the two fixed zones, bottom-aligned, so the stack grows UP from
-  // just above the hand and can never run off the top of the screen.
   // Top-left corner of the SCREEN, not of the playing surface. The top zone is
   // centred on the seat across the table, so this corner is dead space; the
   // surface's own corner is inside the play area, where it crowds the ponds it
@@ -454,14 +459,6 @@ const styles = StyleSheet.create({
     // sat against the bezel and read as clipped rather than placed.
     top: tokens.space.xs,
     left: tokens.space.s,
-  },
-  actionStack: {
-    position: 'absolute',
-    right: tokens.space.s,
-    top: TABLE_ZONES.top,
-    bottom: TABLE_ZONES.emoteRow,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
   },
   // Clear of the top opponent's panel — the token, not a copy of its value,
   // which silently went stale when the zone grew to fit exposed melds.

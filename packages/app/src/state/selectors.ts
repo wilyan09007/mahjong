@@ -7,7 +7,7 @@
  * testing without a renderer.
  */
 
-import type { Action, HandResult, PlayerView, Seat, TileKind } from '@mahjong/engine';
+import { sortTiles, type Action, type HandResult, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
 import type { LobbyMessage, SeatPublic } from '../net/messages.js';
 import { strings } from '../strings.js';
 
@@ -43,6 +43,12 @@ export interface ActionButton {
   action: Action;
   /** Distinguishes several chow options from one another in a list. */
   detail?: string;
+  /**
+   * Tiles drawn on the button: a chow's whole run (its two tiles and the one
+   * being claimed, in order), or the tile a kong is made of. Codes like
+   * "2w 4w" are not something a player can read at a glance.
+   */
+  tiles?: TileKind[];
 }
 
 export interface ActionBarModel {
@@ -84,10 +90,10 @@ export function actionBarModel(
         model.win = { label: strings.win, action };
         break;
       case 'concealed-kong':
-        model.kongs.push({ label: strings.kong, action, detail: action.tile });
+        model.kongs.push({ label: strings.kong, action, detail: action.tile, tiles: [action.tile] });
         break;
       case 'added-kong':
-        model.kongs.push({ label: strings.kong, action, detail: action.tile });
+        model.kongs.push({ label: strings.kong, action, detail: action.tile, tiles: [action.tile] });
         break;
       case 'pass':
         model.pass = action;
@@ -96,10 +102,14 @@ export function actionBarModel(
         if (action.claim === 'win') {
           model.win = { label: strings.win, action };
         } else if (action.claim === 'chow') {
+          const run = action.chowTiles && view.lastDiscard
+            ? sortTiles([...action.chowTiles, view.lastDiscard.tile])
+            : undefined;
           model.claims.push({
             label: strings.chow,
             action,
             detail: action.chowTiles?.join(' ') ?? '',
+            tiles: run,
           });
         } else if (action.claim === 'pung') {
           model.claims.push({ label: strings.pung, action });
@@ -110,6 +120,41 @@ export function actionBarModel(
     }
   }
   return model;
+}
+
+/** One button in the action row, in the order it is drawn left to right. */
+export interface ActionButtonSpec {
+  testID: string;
+  label: string;
+  tone: 'primary' | 'secondary';
+  tiles: TileKind[];
+  /** Null for Discard until a tile is selected: drawn, but not pressable. */
+  action: Action | null;
+}
+
+/**
+ * The action row, left to right. Pass sits at the far LEFT, away from the
+ * thumb, so a hurried tap does not throw away a claim; 胡 and Discard sit at
+ * the far right, under it.
+ */
+export function actionButtons(model: ActionBarModel): ActionButtonSpec[] {
+  const out: ActionButtonSpec[] = [];
+  if (model.pass) {
+    out.push({ testID: 'action-pass', label: strings.pass, tone: 'secondary', tiles: [], action: model.pass });
+  }
+  model.claims.forEach((c, i) => out.push({
+    testID: `action-claim-${i}`, label: c.label, tone: 'secondary', tiles: c.tiles ?? [], action: c.action,
+  }));
+  model.kongs.forEach((k, i) => out.push({
+    testID: `action-kong-${i}`, label: k.label, tone: 'secondary', tiles: k.tiles ?? [], action: k.action,
+  }));
+  if (model.win) {
+    out.push({ testID: 'action-win', label: model.win.label, tone: 'primary', tiles: [], action: model.win.action });
+  }
+  if (model.needsSelection) {
+    out.push({ testID: 'action-discard', label: strings.discard, tone: 'primary', tiles: [], action: model.discard });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

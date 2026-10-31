@@ -4,6 +4,23 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.12.0] - 2026-10-31
+
+### Changed
+
+- **The action buttons sit right above your hand, side by side.** They share
+  the row above your tiles with your melds — melds on the left, buttons on the
+  right — instead of stacking up a column down the right of the screen. Pass is
+  on the far left, away from the thumb; 胡 and Discard on the far right, under
+  it. If the buttons nearly fit they step down a size; only if they still do
+  not fit does a second row rise over the felt, over your own discards, for the
+  seconds a claim window is open. Smaller buttons keep a full 44px touch area.
+- **Chow buttons show the run they make as tiles** — its two tiles and the one
+  being claimed — instead of codes like "2w 4w". A kong button shows its tile.
+- **The hand takes the full width and grows to 42px tiles.** The 100px gutter
+  the button column needed is gone, so an 800px phone no longer shrinks the
+  hand at all.
+
 ## [0.2.11.0] - 2026-10-31
 
 ### Changed

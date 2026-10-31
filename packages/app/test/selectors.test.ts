@@ -1,6 +1,6 @@
 import { assertThat } from './support';
 import {
-  actionBarModel, canStart, formatResult, medalFor, rankStandings,
+  actionBarModel, actionButtons, canStart, formatResult, medalFor, rankStandings,
 } from '../src/state/selectors';
 import { applyAction, legalActions, newHand, viewFor } from '@mahjong/engine';
 import type { GameState, PlayerView, Seat } from '@mahjong/engine';
@@ -104,6 +104,17 @@ describe('actionBarModel', () => {
     }
     expect(new Set(model.claims.map((c) => c.detail)).size).toBe(3);
     expect(model.pass).toEqual({ type: 'pass', seat: 1 });
+
+    // Each button shows the run it would make — its two tiles AND the one
+    // being claimed — as tiles, not as codes like "2w 4w".
+    expect(model.claims.map((c) => c.tiles)).toEqual([
+      ['1w', '2w', '3w'], ['2w', '3w', '4w'], ['3w', '4w', '5w'],
+    ]);
+
+    // In the row: Pass on the far left, away from the thumb; claims after it.
+    const row = actionButtons(model);
+    expect(row[0]!.testID).toBe('action-pass');
+    expect(row.slice(1).map((b) => b.testID)).toEqual(['action-claim-0', 'action-claim-1', 'action-claim-2']);
   });
 
   it('surfaces every legal action exactly once across the model', () => {

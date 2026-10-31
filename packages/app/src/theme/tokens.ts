@@ -81,12 +81,13 @@ export const tokens = {
  * Sized for the real target: a phone in landscape is about 880x400 CSS pixels,
  * and HEIGHT is the scarce dimension. The hand was 36px while four ponds sat in
  * a strip across the middle of the table; with the ponds placed in front of
- * their owners and sized to the felt (see `pondLayout`), the hand gets 40px —
- * 17 of them still fit beside the action stack on the 880px target. Discards
+ * their owners and sized to the felt (see `pondLayout`), and the action buttons
+ * moved from a column down the right into the row above the hand, the hand gets
+ * 42px and the full width — 17 of them fit an 800px phone without shrinking. Discards
  * are not here: their size is chosen per screen by `pondLayout`.
  */
 export const TILE_SIZES = {
-  hand: 40,
+  hand: 42,
   /** A discard outside the table (the gallery). At the table `pondLayout` sizes them. */
   discard: 24,
   meld: 30,
@@ -123,8 +124,9 @@ export const TABLE_ZONES = {
    */
   top: 64,
   /**
-   * Your melds and flowers, your hand, and the emote row. NOT the action
-   * buttons — those stack up the right-hand side, directly above the hand.
+   * Your melds and flowers, your hand, and the emote row. The action buttons
+   * share the melds' row, on its right, and may rise over the felt when a busy
+   * claim window needs a second line.
    */
   bottom: 140,
   /**
@@ -149,23 +151,6 @@ export const TABLE_ZONES = {
    * the side tiles grow from slits into something tile-shaped.
    */
   railTop: 50,
-  /**
-   * The emote row along the bottom. The action stack stops here rather than
-   * running to the floor: anchored any lower it sat on the emotes, and
-   * anchored into the middle band instead it clipped the corner of the right
-   * player's panel and covered the last of their tile slivers.
-   *
-   * The row itself measures 37px; the extra is clearance, because at exactly
-   * its height the stack and the emotes touched by a pixel.
-   */
-  emoteRow: 44,
-  /**
-   * Width kept clear down the right for the action stack. The hand is sized to
-   * what is left rather than laid out at full size underneath it: 17 tiles at
-   * 36px already take 91% of a 711px window, so without this the Discard
-   * button sat on top of the last few tiles of your own hand.
-   */
-  actionGutter: 100,
 } as const;
 
 /**
