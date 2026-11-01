@@ -4,6 +4,14 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.15.0] - 2026-11-01
+
+### Fixed
+
+- A drawn hand's 流局 stamp was buried by the result sheet a third of a second
+  after it appeared — only wins made the sheet wait. Every ending now gets its
+  stamp's full beat (`resultSheetDelay`).
+
 ## [0.2.14.0] - 2026-11-01
 
 ### Changed

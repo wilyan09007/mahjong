@@ -35,7 +35,7 @@ export const MOTION = {
     calloutHold: 900,
     /** The win call-out stays longer: it is the payoff. */
     winHold: 1300,
-    /** The result sheet waits until the win call-out has lifted (hold + fade). */
+    /** The result sheet waits until the closing call-out has lifted (hold + fade). */
     resultDelay: 1460,
     /** One breath of the gold ring around whoever is on turn. */
     turnPulse: 1400,
@@ -77,6 +77,15 @@ export function entrancePose(kind: EntranceKind, from: Edge): Pose {
       return { translateX: dx, translateY: dy, scale: 1.3, opacity: 0 };
     }
   }
+}
+
+/**
+ * How long the result sheet waits after a hand ends. Every ending has its
+ * stamp — 胡 or 自摸 for a win, 流局 for a wall run dry — and the sheet waits
+ * for it to lift rather than burying it.
+ */
+export function resultSheetDelay(_ending: 'win' | 'draw-exhausted'): number {
+  return MOTION.duration.resultDelay;
 }
 
 /** Start delay for the `index`th tile of the opening deal. */

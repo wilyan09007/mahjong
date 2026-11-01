@@ -1,5 +1,5 @@
 import { assertAtMost, assertEqual, assertThat } from './support';
-import { MOTION, dealDelay, entrancePose, type EntranceKind } from '../src/theme/motion';
+import { MOTION, dealDelay, entrancePose, resultSheetDelay, type EntranceKind } from '../src/theme/motion';
 import type { Edge } from '../src/state/tableLayout';
 
 /**
@@ -43,6 +43,18 @@ describe('the win', () => {
       MOTION.duration.resultDelay >= MOTION.duration.winHold + MOTION.duration.fade,
       'the result sheet covers the win stamp',
     );
+  });
+});
+
+describe('the end of a hand', () => {
+  it('lets the 流局 stamp of a drawn hand land before the sheet covers it, as a win does', () => {
+    // The draw sheet used to arrive after 320ms, burying 流局 almost at once.
+    for (const type of ['win', 'draw-exhausted'] as const) {
+      assertThat(
+        resultSheetDelay(type) >= MOTION.duration.winHold + MOTION.duration.fade,
+        `${type}: the result sheet covers its stamp`,
+      );
+    }
   });
 });
 

@@ -11,7 +11,7 @@ import { FELT_INSET, edgeFor, feltSize, pondLayout } from '../src/state/tableLay
 import { tableEvents } from '../src/state/tableEvents';
 import { planMotion, type Callout as CalloutPlan, type MotionPlan } from '../src/state/motionPlan';
 import { Appear, Callout } from '../src/components/Motion';
-import { MOTION } from '../src/theme/motion';
+import { MOTION, resultSheetDelay } from '../src/theme/motion';
 import {
   HandRow, MELD_ROW, MeldGroup, OpponentPanel, SeatPond, TableStatus, meldRowWidth,
 } from '../src/components/Board';
@@ -87,14 +87,14 @@ export default function TableScreen(): React.ReactElement {
   const motion = useTableMotion(view);
   const callouts = useCallouts(motion);
 
-  // The result sheet waits for the win call-out to land: covering the 胡 the
-  // moment it appears would throw away the best moment of the hand.
+  // The result sheet waits for the closing call-out to land: covering the 胡
+  // the moment it appears would throw away the best moment of the hand, and a
+  // drawn hand's 流局 deserves its beat too.
   const [resultReady, setResultReady] = useState(false);
   useEffect(() => {
     setResultReady(false);
     if (!handResult) return;
-    const wait = handResult.result.type === 'win' ? MOTION.duration.resultDelay : MOTION.duration.settle;
-    const timer = setTimeout(() => setResultReady(true), wait);
+    const timer = setTimeout(() => setResultReady(true), resultSheetDelay(handResult.result.type));
     return () => clearTimeout(timer);
   }, [handResult]);
 
