@@ -1,3 +1,4 @@
+import { DEFAULT_CANTONESE_RULES } from '@mahjong/engine';
 import { assertThat } from './support';
 import {
   EMPTY_SERVER_STATE, MAX_EMOTES, applyServerMessage, useGameStore,
@@ -20,6 +21,7 @@ const lobby: LobbyMessage = {
   code: 'ABC234',
   hostPlayerId: 'p1',
   config: {
+    variant: 'taiwanese', cantonese: DEFAULT_CANTONESE_RULES,
     totalRounds: 1, base: 3, perTai: 1,
     turnSeconds: 30, claimSeconds: 7, botDelayMs: 700, interHandMs: 5000,
   },

@@ -9,7 +9,7 @@
  * from `@mahjong/engine`, which both sides genuinely do depend on.
  */
 
-import type { Action, HandResult, PlayerView, Seat } from '@mahjong/engine';
+import type { Action, CantoneseRules, HandResult, PlayerView, Seat, VariantId } from '@mahjong/engine';
 
 export type SeatKind = 'human' | 'bot' | 'empty';
 
@@ -21,6 +21,10 @@ export interface SeatPublic {
 }
 
 export interface RoomConfig {
+  /** The ruleset, chosen in the lobby before the game starts. */
+  variant: VariantId;
+  /** Hong Kong house options; ignored at a Taiwanese table. */
+  cantonese: CantoneseRules;
   totalRounds: 1 | 2 | 4;
   base: number;
   perTai: number;

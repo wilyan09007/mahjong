@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 import { Room, ServerError, type Client } from '@colyseus/core';
 import {
-  IllegalActionError, applyAction, isSessionOver, legalActions, newHand, newSession,
+  CANTONESE_MIN_FAAN_OPTIONS, IllegalActionError, applyAction, isSessionOver, legalActions, newHand, newSession,
   nextHandParams, viewFor,
   type Action, type GameState, type Seat, type SessionParams,
 } from '@mahjong/engine';
@@ -233,6 +233,33 @@ export class TableRoom extends Room {
     this.onMessage(C2S.config, (client, message: ConfigMessage) => {
       if (!this.requireHostInLobby(client)) return;
       const next = { ...this.config };
+      if (message?.variant !== undefined) {
+        if (message.variant !== 'taiwanese' && message.variant !== 'cantonese') {
+          this.sendError(client, 'variant must be taiwanese or cantonese');
+          return;
+        }
+        next.variant = message.variant;
+      }
+      if (message?.cantonese !== undefined) {
+        const hk = { ...next.cantonese, ...message.cantonese };
+        if (!(CANTONESE_MIN_FAAN_OPTIONS as readonly number[]).includes(hk.minFaan)) {
+          this.sendError(client, `minFaan must be one of ${CANTONESE_MIN_FAAN_OPTIONS.join(', ')}`);
+          return;
+        }
+        if (hk.maxFaan !== 10 && hk.maxFaan !== 13) {
+          this.sendError(client, 'maxFaan must be 10 or 13');
+          return;
+        }
+        if (hk.payment !== 'half' && hk.payment !== 'full') {
+          this.sendError(client, 'payment must be half or full');
+          return;
+        }
+        if (typeof hk.sevenPairs !== 'boolean') {
+          this.sendError(client, 'sevenPairs must be true or false');
+          return;
+        }
+        next.cantonese = hk;
+      }
       if (message?.totalRounds !== undefined) {
         if (![1, 2, 4].includes(message.totalRounds)) {
           this.sendError(client, 'totalRounds must be 1, 2 or 4');
@@ -372,7 +399,8 @@ export class TableRoom extends Room {
       dealer: this.session.dealer,
       dealerStreak: this.session.dealerStreak,
       roundWind: this.session.roundWind,
-      rules: { base: this.config.base, perTai: this.config.perTai },
+      rules: { base: this.config.base, perTai: this.config.perTai, cantonese: this.config.cantonese },
+      variantId: this.config.variant,
     });
     this.generation++;
     this.pushViews();

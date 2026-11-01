@@ -8,7 +8,7 @@
  */
 
 import { WALL_FLOOR, sortTiles, type Action, type HandResult, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
-import type { LobbyMessage, SeatPublic } from '../net/messages.js';
+import type { LobbyMessage, RoomConfig, SeatPublic } from '../net/messages.js';
 import { strings } from '../strings.js';
 
 // ---------------------------------------------------------------------------
@@ -171,6 +171,21 @@ export function thinkingSeats(view: PlayerView): Seat[] {
   return view.opponents.map((o) => o.seat).filter((s) => s === view.turn);
 }
 
+/** The table's rules in one line, for the players who cannot change them. */
+export function rulesSummary(config: Pick<RoomConfig, 'variant' | 'cantonese'>): string {
+  if (config.variant !== 'cantonese') {
+    return `${strings.ruleset.taiwanese} · ${strings.rulesetDetail.taiwanese}`;
+  }
+  const hk = config.cantonese;
+  return [
+    strings.ruleset.cantonese,
+    hk.minFaan === 0 ? 'any hand wins' : `min ${hk.minFaan} 番`,
+    `max ${hk.maxFaan}`,
+    hk.payment === 'half' ? 'half spicy' : 'full spicy',
+    ...(hk.sevenPairs ? ['seven pairs'] : []),
+  ].join(' · ');
+}
+
 /**
  * Tiles that can still be drawn, for the "N left" counter. The last
  * `WALL_FLOOR` tiles of the wall are a reserve that is never drawn, so counting
@@ -190,6 +205,8 @@ export interface PaymentRow { name: string; delta: number; seat: Seat }
 
 export interface FormattedResult {
   title: string;
+  /** 台 or 番, for the rows. */
+  unit: string;
   subtitle: string | null;
   rows: ResultRow[];
   total: number;
@@ -205,12 +222,15 @@ export interface FormattedResult {
 export function formatResult(
   result: HandResult,
   seatNames: Record<number, string>,
+  /** The ruleset's score unit: 台 or 番. */
+  unit = '台',
 ): FormattedResult {
   const nameOf = (seat: Seat): string => seatNames[seat] ?? `Seat ${seat + 1}`;
 
   if (result.type === 'draw-exhausted') {
     return {
       title: strings.exhaustiveDraw,
+      unit,
       subtitle: null,
       rows: [],
       total: 0,
@@ -220,7 +240,8 @@ export function formatResult(
   }
 
   return {
-    title: `${nameOf(result.winner)} — ${strings.tai(result.tai)}`,
+    title: `${nameOf(result.winner)} — ${strings.score(result.tai, unit)}`,
+    unit,
     subtitle: result.by === 'self-draw'
       ? strings.selfDraw
       : strings.wonFrom(nameOf(result.discarder ?? result.winner)),

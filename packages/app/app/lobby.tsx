@@ -7,7 +7,8 @@ import type { Seat } from '@mahjong/engine';
 import { useGameStore } from '../src/state/store';
 import { send, leaveRoom } from '../src/net/connection';
 import { C2S } from '../src/net/messages';
-import { canStart, seatLabel } from '../src/state/selectors';
+import { canStart, rulesSummary, seatLabel } from '../src/state/selectors';
+import { RuleChips } from '../src/components/RuleChips';
 import { SeatCard } from '../src/components/Board';
 import { Button, ErrorToast } from '../src/components/Controls';
 import { tokens } from '../src/theme/tokens';
@@ -118,6 +119,18 @@ export default function LobbyScreen(): React.ReactElement {
           onRemoveBot={(s: Seat) => send(C2S.removeBot, { seat: s })}
         />
       ))}
+      {/* The house rules are settled here, before the deal — the host picks,
+          everyone else sees what was picked. */}
+      {isHost ? (
+        <RuleChips
+          variant={lobby.config.variant}
+          cantonese={lobby.config.cantonese}
+          onVariant={(variant) => send(C2S.config, { variant })}
+          onCantonese={(cantonese) => send(C2S.config, { cantonese })}
+        />
+      ) : (
+        <Text style={styles.rules} testID="rules-summary">{rulesSummary(lobby.config)}</Text>
+      )}
     </View>
   );
 
@@ -158,4 +171,5 @@ const styles = StyleSheet.create({
   configRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.s },
   roundButton: { flex: 1 },
   muted: { color: tokens.color.textMuted, fontSize: 13, textAlign: 'center' },
+  rules: { color: tokens.color.textOnFelt, fontSize: 13, marginTop: tokens.space.s },
 });

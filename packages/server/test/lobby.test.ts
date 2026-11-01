@@ -115,6 +115,35 @@ describe('lobby', () => {
     expect((await log.next<{ message: string }>('error')).message).toMatch(/non-negative/);
   });
 
+  it('lets the host choose the Hong Kong ruleset and its house options before starting', async () => {
+    const host = await env.sdk.create('table', { playerId: 'p1', name: 'Ann' });
+    const log = record(host);
+    const first = await log.next<LobbyMessage>('lobby');
+    expect(first.config.variant).toBe('taiwanese');
+
+    host.send('config', { variant: 'cantonese', cantonese: { minFaan: 0, maxFaan: 10, payment: 'full', sevenPairs: false } });
+    const lobby = await log.next<LobbyMessage>('lobby', (m) => m.config.variant === 'cantonese');
+    expect(lobby.config.cantonese).toEqual({ minFaan: 0, maxFaan: 10, payment: 'full', sevenPairs: false });
+
+    // A partial update keeps the rest.
+    host.send('config', { cantonese: { minFaan: 5 } });
+    const next = await log.next<LobbyMessage>('lobby', (m) => m.config.cantonese.minFaan === 5);
+    expect(next.config.cantonese).toEqual({ minFaan: 5, maxFaan: 10, payment: 'full', sevenPairs: false });
+  });
+
+  it('rejects a ruleset or Hong Kong option that does not exist', async () => {
+    const host = await env.sdk.create('table', { playerId: 'p1', name: 'Ann' });
+    const log = record(host);
+    host.send('config', { variant: 'riichi' as never });
+    expect((await log.next<{ message: string }>('error')).message).toMatch(/taiwanese or cantonese/);
+    log.clear('error');
+    host.send('config', { cantonese: { minFaan: 2 } });
+    expect((await log.next<{ message: string }>('error')).message).toMatch(/minFaan/);
+    log.clear('error');
+    host.send('config', { cantonese: { maxFaan: 12 as 10 } });
+    expect((await log.next<{ message: string }>('error')).message).toMatch(/maxFaan/);
+  });
+
   /**
    * How a join is REFUSED, not just that it is.
    *

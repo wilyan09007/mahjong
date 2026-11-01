@@ -11,7 +11,8 @@
  * either carries a `PlayerView` or carries no hidden information at all.
  */
 
-import type { HandResult, PlayerView, Seat } from '@mahjong/engine';
+import { DEFAULT_CANTONESE_RULES } from '@mahjong/engine';
+import type { CantoneseRules, HandResult, PlayerView, Seat, VariantId } from '@mahjong/engine';
 import type { Action } from '@mahjong/engine';
 
 export type SeatKind = 'human' | 'bot' | 'empty';
@@ -25,6 +26,10 @@ export interface SeatPublic {
 }
 
 export interface RoomConfig {
+  /** The ruleset, chosen in the lobby before the game starts. */
+  variant: VariantId;
+  /** Hong Kong house options; ignored at a Taiwanese table. */
+  cantonese: CantoneseRules;
   /** 1, 2 or 4 laps of the deal. 4 is 全莊, the full Taiwanese game. */
   totalRounds: 1 | 2 | 4;
   /** 底 — the flat stake on every payment. */
@@ -38,6 +43,8 @@ export interface RoomConfig {
 }
 
 export const DEFAULT_ROOM_CONFIG: RoomConfig = {
+  variant: 'taiwanese',
+  cantonese: DEFAULT_CANTONESE_RULES,
   totalRounds: 1,
   base: 3,
   perTai: 1,
@@ -63,8 +70,11 @@ export interface JoinOptions {
 }
 
 export type ConfigMessage = Partial<
-  Pick<RoomConfig, 'totalRounds' | 'base' | 'perTai' | 'turnSeconds' | 'claimSeconds'>
->;
+  Pick<RoomConfig, 'variant' | 'totalRounds' | 'base' | 'perTai' | 'turnSeconds' | 'claimSeconds'>
+> & {
+  /** Any subset of the Hong Kong options; the rest are kept. */
+  cantonese?: Partial<CantoneseRules>;
+};
 export interface SeatMessage { seat: Seat }
 export interface ActionMessage { action: Action }
 export interface EmoteMessage { emote: string }

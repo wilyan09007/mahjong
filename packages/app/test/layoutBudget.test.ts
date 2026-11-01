@@ -1,6 +1,7 @@
 import { assertAtMost, assertAtLeast, assertThat } from './support';
 import { MELD_ROW, handTileWidth, meldRowWidth } from '../src/components/Board';
 import { actionRowHeight, layoutActionRow } from '../src/state/actionRow';
+import { CHIP_HIT_SLOP, CHIP_ROW } from '../src/components/RuleChips';
 import { POND, feltSize, pondBlock, pondLayout } from '../src/state/tableLayout';
 import {
   COMPACT_ROW, PHONE_LANDSCAPE, SIDE_STACK, TABLE_ZONES, TILE_SIZES,
@@ -348,6 +349,17 @@ describe('landscape menu screens fit a phone', () => {
       'the lobby now fits stacked in one column, so the landscape split in ' +
         'app/lobby.tsx is no longer load-bearing and this test is dead',
     );
+  });
+
+  it('the ruleset picker and Hong Kong options fit under the seats', () => {
+    // The controls column is full, so the house rules ride under the seat
+    // cards as chip rows: the ruleset, then two rows of Hong Kong options.
+    const seats = 4 * COMPACT_ROW.seat + 3 * tokens.space.s;
+    const rules = tokens.space.s + 3 * CHIP_ROW + 2 * 6;
+    assertAtMost(seats + rules, usable,
+      `seats (${seats}) and the rules rows (${rules}) need ${seats + rules}px of ${usable}px`);
+    // A chip draws small but is touched at full size.
+    assertAtLeast(CHIP_ROW + 2 * CHIP_HIT_SLOP, tokens.hitSlop - 2, 'rule chips are too small to tap');
   });
 
   it('the results standings and actions fit as columns but not stacked', () => {

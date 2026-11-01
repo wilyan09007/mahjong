@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { seatWind, type Action, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
+import { resolveVariant, seatWind, type Action, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
 import { useGameStore } from '../src/state/store';
 import { playAction, send } from '../src/net/connection';
 import { C2S } from '../src/net/messages';
@@ -318,7 +318,9 @@ export default function TableScreen(): React.ReactElement {
           <Appear style={styles.overlayCard}>
           <ScrollView contentContainerStyle={styles.overlayInner}>
             {(() => {
-              const formatted = formatResult(handResult.result, seatNames);
+              const formatted = formatResult(
+                handResult.result, seatNames, resolveVariant(lobby?.config.variant ?? 'taiwanese').unit,
+              );
               return (
                 <>
                   <Text style={styles.overlayTitle}>{formatted.title}</Text>
@@ -339,7 +341,7 @@ export default function TableScreen(): React.ReactElement {
                   {formatted.rows.map((row, i) => (
                     <View key={i} style={styles.taiRow}>
                       <Text style={styles.taiName}>{row.name}</Text>
-                      <Text style={styles.taiValue}>{strings.tai(row.tai)}</Text>
+                      <Text style={styles.taiValue}>{strings.score(row.tai, formatted.unit)}</Text>
                     </View>
                   ))}
                   <View style={styles.payments}>

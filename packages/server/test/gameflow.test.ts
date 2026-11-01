@@ -37,6 +37,22 @@ async function seatFourHumans(
   return { rooms, logs };
 }
 
+describe('a Hong Kong table', () => {
+  it('starts a 13-tile hand when the host chose Hong Kong rules', async () => {
+    const host = await env.sdk.create('table', { playerId: 'p0', name: 'Ann', __test: { ...FAST, turnSeconds: 600 } });
+    const log = record(host);
+    for (const seat of [1, 2, 3]) host.send('fill-bot', { seat });
+    await log.next<LobbyMessage>('lobby', (m) => m.seats.every((x) => x.kind !== 'empty'));
+    host.send('config', { variant: 'cantonese' });
+    await log.next<LobbyMessage>('lobby', (m) => m.config.variant === 'cantonese');
+    host.send('start', {});
+    const view = await log.next<PlayerView>('view');
+    // Seat 0 deals: 14 tiles in hand, everyone else 13.
+    expect(view.hand.length + view.melds.length * 3).toBe(14);
+    expect(view.opponents.map((o) => o.handCount + o.melds.length * 3)).toEqual([13, 13, 13]);
+  });
+});
+
 describe('game flow over the wire', () => {
   it('4 humans play a full hand, and no view ever leaks hidden information', async () => {
     const { rooms, logs } = await seatFourHumans();

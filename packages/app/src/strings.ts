@@ -65,6 +65,8 @@ export const strings = {
   wonFrom: (name: string): string => `from ${name}`,
   exhaustiveDraw: 'Draw — the wall ran out',
   tai: (n: number): string => `${n} 台`,
+  /** A hand's score in its ruleset's unit: 台 (Taiwanese) or 番 (Hong Kong). */
+  score: (n: number, unit: string): string => `${n} ${unit}`,
   continueLabel: 'Continue',
   standings: 'Standings',
   playAgain: 'Play again',
@@ -85,6 +87,18 @@ export const strings = {
     selfDraw: '自摸',
     exhausted: '流局',
   },
+
+  // House rules, chosen in the lobby
+  ruleset: { taiwanese: 'Taiwanese', cantonese: 'Hong Kong' },
+  rulesetDetail: { taiwanese: '16 tiles', cantonese: '13 tiles' },
+  minFaan: 'Min 番',
+  maxFaan: 'Max',
+  anyHand: 'Any',
+  payment: 'Pay',
+  paymentName: { half: 'Half', full: 'Full' },
+  sevenPairs: '7 pairs',
+  on: 'On',
+  off: 'Off',
 
   // Generic
   reconnecting: 'Reconnecting…',

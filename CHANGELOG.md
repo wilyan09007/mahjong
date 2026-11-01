@@ -4,6 +4,28 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.3.0.0] - 2026-11-01
+
+### Added
+
+- **Hong Kong (Cantonese) rules.** The host picks the ruleset in the lobby
+  before the deal: Taiwanese (16 tiles, 台) or Hong Kong (13 tiles, 番). Hong
+  Kong brings its own 番 table — 平糊 1 · 對對糊 3 · 混一色 3 · 七對子 5 · 小三元 5 ·
+  小四喜 6 · 清一色 7 · 大三元 8, the dragon/wind/flower/winning-condition extras,
+  and limit hands 字一色 · 坎坎糊 · 清么九 · 九子連環 (10) and 大四喜 · 十八羅漢 ·
+  十三么 · 天糊 · 地糊 (13) — and four house options: minimum to win (Any, 1, 3,
+  5), maximum (10 or 13), half- or full-spicy payment, and seven pairs on or
+  off. Defaults: 3, 13, half spicy, on. A hand under the minimum is never
+  offered as a win. The score sheet counts 番. Spec:
+  `docs/superpowers/specs/2026-11-01-hong-kong-variant.md`.
+- Bots play Hong Kong hands too (standard shapes; see TODOS on playing for 番).
+
+### Changed
+
+- The engine's `Variant` now owns everything a ruleset decides about a win —
+  shape, minimum, score, payment — and every path to a win goes through one
+  check, so Taiwanese and Hong Kong share all table mechanics.
+
 ## [0.2.17.0] - 2026-11-01
 
 ### Changed

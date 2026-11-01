@@ -1,7 +1,8 @@
+import { DEFAULT_CANTONESE_RULES } from '@mahjong/engine';
 import { assertThat } from './support';
 import {
   actionBarModel, actionButtons, canStart, drawableTiles, formatResult, medalFor, rankStandings,
-  thinkingSeats,
+  rulesSummary, thinkingSeats,
 } from '../src/state/selectors';
 import { applyAction, legalActions, newHand, viewFor } from '@mahjong/engine';
 import type { GameState, PlayerView, Seat } from '@mahjong/engine';
@@ -17,6 +18,7 @@ function lobbyWith(
     code: 'ABC234',
     hostPlayerId,
     config: {
+      variant: 'taiwanese', cantonese: DEFAULT_CANTONESE_RULES,
       totalRounds: 1, base: 3, perTai: 1,
       turnSeconds: 30, claimSeconds: 7, botDelayMs: 700, interHandMs: 5000,
     },
@@ -304,5 +306,28 @@ describe('actionButtons tones', () => {
       win: { label: '胡', action: win },
     });
     expect(row.map((b) => [b.testID, b.tone])).toEqual([['action-win', 'win'], ['action-discard', 'primary']]);
+  });
+});
+
+
+describe('Hong Kong on the score sheet and in the lobby', () => {
+  it('counts a Hong Kong hand in 番', () => {
+    const f = formatResult({
+      type: 'win', winner: 1, by: 'discard', discarder: 0, winTile: '1w', tai: 5,
+      breakdown: [{ name: '七對子', tai: 5 }], payments: [-24, 24, 0, 0],
+      winningHand: { concealed: [], melds: [], flowers: [] },
+    }, NAMES, '番');
+    expect(f.title).toBe('Bo — 5 番');
+    expect(f.unit).toBe('番');
+  });
+
+  it('sums up the table’s rules in one line for players who cannot change them', () => {
+    expect(rulesSummary({ variant: 'taiwanese' } as never)).toBe('Taiwanese · 16 tiles');
+    expect(rulesSummary({
+      variant: 'cantonese', cantonese: { minFaan: 3, maxFaan: 13, payment: 'half', sevenPairs: true },
+    } as never)).toBe('Hong Kong · min 3 番 · max 13 · half spicy · seven pairs');
+    expect(rulesSummary({
+      variant: 'cantonese', cantonese: { minFaan: 0, maxFaan: 10, payment: 'full', sevenPairs: false },
+    } as never)).toBe('Hong Kong · any hand wins · max 10 · full spicy');
   });
 });

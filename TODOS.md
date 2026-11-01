@@ -71,10 +71,15 @@ waiting for the win. Replay any of it from `/dev-gallery`. Still open:
   needs measured layouts. Ponds now sit by seat, so the target is known.
 - **Sound.** Tile clacks on discard and claim would do as much as the motion.
 
-### v1.1 — Cantonese variant
-**Priority:** P4
-`VARIANTS` has the seam and `resolveVariant` throws for `'cantonese'` today.
-Needs a 13-tile hand size, its own scoring module and its own test table.
+### Hong Kong: bots should play for 番
+**Priority:** P2
+Hong Kong rules shipped in v0.3.0.0, but the bot still plays for the fastest
+finished shape and ignores 番. At the 3-番 default its hands are often
+complete yet undeclarable, so most hands run the wall out — a recorded session
+took eight hands to produce one win. The bot needs to steer toward 番: keep
+honour pungs and seat/round winds, lean into a half flush when a suit
+dominates, prefer pungs over chows, and stay concealed. Lower minimums (Any,
+1) already play normally.
 
 ### v1.2 — cosmetics store, rewarded ads, iOS
 **Priority:** P4
