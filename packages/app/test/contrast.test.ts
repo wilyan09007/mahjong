@@ -113,6 +113,22 @@ describe('theme legibility', () => {
     }
   });
 
+  it('claim and win buttons read clearly and stand apart from Pass', () => {
+    assertAtLeast(contrastRatio(color.textOnFelt, color.claimButton), 4.5,
+      'label on a chow/pung/kong button');
+    assertAtLeast(contrastRatio(color.calloutGlyph, color.winButton), 4.5,
+      'label on the 胡 button');
+    // Each claim colour must be tellable from the Pass button beside it, and
+    // 胡 from the claims — that difference is the point of colouring them.
+    for (const [a, b] of [['claimButton', 'surfaceRaised'], ['winButton', 'claimButton'],
+      ['winButton', 'surfaceRaised']] as const) {
+      const [ca, cb] = [color[a], color[b]];
+      const hueGap = Math.max(...[1, 3, 5].map((i) =>
+        Math.abs(parseInt(ca.slice(i, i + 2), 16) - parseInt(cb.slice(i, i + 2), 16))));
+      assertAtLeast(hueGap, 60, `${a} ${ca} is too close to ${b} ${cb}`);
+    }
+  });
+
   it('every colour token is a well-formed hex or an rgba string', () => {
     for (const [name, value] of Object.entries(color)) {
       assertThat(

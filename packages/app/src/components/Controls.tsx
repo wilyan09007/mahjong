@@ -17,7 +17,7 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  tone?: 'primary' | 'secondary' | 'danger';
+  tone?: 'primary' | 'secondary' | 'danger' | 'claim' | 'win';
   disabled?: boolean;
   /** Tighter, for places where several share a line. */
   compact?: boolean;
@@ -27,9 +27,13 @@ export function Button({
   tiles?: TileKind[];
   testID?: string;
 }): React.ReactElement {
-  const background = tone === 'primary'
-    ? tokens.color.accentGold
-    : tone === 'danger' ? tokens.color.danger : tokens.color.surfaceRaised;
+  const background = {
+    primary: tokens.color.accentGold,
+    secondary: tokens.color.surfaceRaised,
+    danger: tokens.color.danger,
+    claim: tokens.color.claimButton,
+    win: tokens.color.winButton,
+  }[tone];
   const metrics = size ? ACTION_SIZES[size] : null;
   return (
     <Pressable
@@ -43,6 +47,7 @@ export function Button({
         styles.button,
         compact && styles.buttonCompact,
         metrics && { minHeight: metrics.height, paddingHorizontal: metrics.padH },
+        tone === 'win' && styles.buttonWin,
         { backgroundColor: background, opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
       ]}
     >
@@ -51,6 +56,7 @@ export function Button({
           style={[
             styles.buttonLabel,
             tone === 'primary' && styles.buttonLabelDark,
+            tone === 'win' && styles.buttonLabelWin,
             metrics && { fontSize: metrics.fontSize },
           ]}
         >
@@ -175,6 +181,9 @@ const styles = StyleSheet.create({
   },
   buttonLabel: { color: tokens.color.textOnFelt, fontSize: 17, fontWeight: '700' },
   buttonLabelDark: { color: tokens.color.inkPrimary },
+  // 胡 looks like its stamp: red lacquer, gold rim, cream lettering.
+  buttonWin: { borderWidth: 2, borderColor: tokens.color.accentGold },
+  buttonLabelWin: { color: tokens.color.calloutGlyph },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   buttonTiles: { flexDirection: 'row', gap: 1 },
   // Rows stack UPWARD from the hand: the first row is the bottom one.

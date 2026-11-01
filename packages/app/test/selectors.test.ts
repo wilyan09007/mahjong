@@ -116,6 +116,8 @@ describe('actionBarModel', () => {
     const row = actionButtons(model);
     expect(row[0]!.testID).toBe('action-pass');
     expect(row.slice(1).map((b) => b.testID)).toEqual(['action-claim-0', 'action-claim-1', 'action-claim-2']);
+    // Claims are coloured as claims; Pass stays plain.
+    expect(row.map((b) => b.tone)).toEqual(['secondary', 'claim', 'claim', 'claim']);
   });
 
   it('surfaces every legal action exactly once across the model', () => {
@@ -289,5 +291,18 @@ describe('drawableTiles', () => {
     // Nobody ever declares a win here, so the hand must run the wall out.
     expect(state.result?.type).toBe('draw-exhausted');
     expect(drawableTiles(viewFor(state, 0))).toBe(0);
+  });
+});
+
+
+describe('actionButtons tones', () => {
+  it('gives 胡 its own colour, distinct from claims and from Discard', () => {
+    const win = { type: 'self-win', seat: 0 } as const;
+    const discard = { type: 'discard', seat: 0, tile: '1w' } as const;
+    const row = actionButtons({
+      discard, needsSelection: true, claims: [], kongs: [], pass: null,
+      win: { label: '胡', action: win },
+    });
+    expect(row.map((b) => [b.testID, b.tone])).toEqual([['action-win', 'win'], ['action-discard', 'primary']]);
   });
 });

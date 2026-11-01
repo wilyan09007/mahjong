@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FLOWERS, NON_FLOWER_KINDS, type TileKind } from '@mahjong/engine';
 import { Tile, type TileEntrance } from '../src/tiles/Tile';
 import { HandRow, MeldGroup, OpponentPanel, SeatPond } from '../src/components/Board';
-import { Button } from '../src/components/Controls';
+import { ActionBar, Button } from '../src/components/Controls';
 import { Callout } from '../src/components/Motion';
 import { PHONE_LANDSCAPE, TABLE_ZONES, tokens } from '../src/theme/tokens';
 import { MOTION, dealDelay } from '../src/theme/motion';
@@ -24,6 +24,10 @@ export default function DevGalleryScreen(): React.ReactElement {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <MotionStage />
+      <Text style={styles.heading}>Action buttons — every kind at once</Text>
+      <View style={styles.actionSample}>
+        <ActionBar model={SAMPLE_ACTIONS} onAction={() => undefined} disabled={false} />
+      </View>
       <LateGamePonds />
 
       <Text style={styles.heading}>42 faces @ hand size</Text>
@@ -191,6 +195,20 @@ function LateGamePonds(): React.ReactElement {
   );
 }
 
+/** Pass, two chows, a pung, a kong, 胡 and Discard: every button tone side by side. */
+const SAMPLE_ACTIONS = {
+  pass: { type: 'pass', seat: 0 },
+  claims: [
+    { label: strings.chow, action: { type: 'claim', seat: 0, claim: 'chow' }, tiles: ['2w', '3w', '4w'] },
+    { label: strings.chow, action: { type: 'claim', seat: 0, claim: 'chow' }, tiles: ['3w', '4w', '5w'] },
+    { label: strings.pung, action: { type: 'claim', seat: 0, claim: 'pung' } },
+  ],
+  kongs: [{ label: strings.kong, action: { type: 'concealed-kong', seat: 0, tile: '9b' }, tiles: ['9b'] }],
+  win: { label: strings.win, action: { type: 'claim', seat: 0, claim: 'win' } },
+  discard: { type: 'discard', seat: 0, tile: '1w' },
+  needsSelection: true,
+} as unknown as React.ComponentProps<typeof ActionBar>['model'];
+
 const ARROW: Record<Edge, string> = { bottom: '↑', left: '→', top: '↓', right: '←' };
 
 const SAMPLE_MELDS = [
@@ -225,6 +243,7 @@ const styles = StyleSheet.create({
   content: { padding: tokens.space.m, gap: tokens.space.m },
   heading: { color: tokens.color.accentGold, fontSize: 16, fontWeight: '700' },
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.xs },
+  actionSample: { alignItems: 'flex-start', padding: tokens.space.s, backgroundColor: tokens.color.tableFelt, borderRadius: tokens.radius.m },
   felt: {
     backgroundColor: tokens.color.tableFelt,
     borderRadius: tokens.radius.l,

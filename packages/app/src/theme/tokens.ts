@@ -44,6 +44,10 @@ export const tokens = {
     calloutGlyph: '#F8E7B5',
     /** A hand nobody won gets a quiet stamp, not a celebration. */
     calloutMuted: '#34453D',
+    /** Chow, pung and kong buttons: a blue no other surface uses, so an offer stands out. */
+    claimButton: '#2B6CA3',
+    /** The 胡 button: the red lacquer of the 胡 stamp, rimmed in gold. */
+    winButton: '#9B231C',
     /**
      * Face-down tiles sit ON the felt, so this has to be legible against it.
      * The original #2E6B4F scored 1.23:1 against `tableFelt` — an opponent's 16

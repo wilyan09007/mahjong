@@ -126,7 +126,11 @@ export function actionBarModel(
 export interface ActionButtonSpec {
   testID: string;
   label: string;
-  tone: 'primary' | 'secondary';
+  /**
+   * Pass is plain; chow, pung and kong share the claim colour; 胡 has its own,
+   * the red lacquer of its stamp; Discard is the gold primary.
+   */
+  tone: 'primary' | 'secondary' | 'claim' | 'win';
   tiles: TileKind[];
   /** Null for Discard until a tile is selected: drawn, but not pressable. */
   action: Action | null;
@@ -143,13 +147,13 @@ export function actionButtons(model: ActionBarModel): ActionButtonSpec[] {
     out.push({ testID: 'action-pass', label: strings.pass, tone: 'secondary', tiles: [], action: model.pass });
   }
   model.claims.forEach((c, i) => out.push({
-    testID: `action-claim-${i}`, label: c.label, tone: 'secondary', tiles: c.tiles ?? [], action: c.action,
+    testID: `action-claim-${i}`, label: c.label, tone: 'claim', tiles: c.tiles ?? [], action: c.action,
   }));
   model.kongs.forEach((k, i) => out.push({
-    testID: `action-kong-${i}`, label: k.label, tone: 'secondary', tiles: k.tiles ?? [], action: k.action,
+    testID: `action-kong-${i}`, label: k.label, tone: 'claim', tiles: k.tiles ?? [], action: k.action,
   }));
   if (model.win) {
-    out.push({ testID: 'action-win', label: model.win.label, tone: 'primary', tiles: [], action: model.win.action });
+    out.push({ testID: 'action-win', label: model.win.label, tone: 'win', tiles: [], action: model.win.action });
   }
   if (model.needsSelection) {
     out.push({ testID: 'action-discard', label: strings.discard, tone: 'primary', tiles: [], action: model.discard });

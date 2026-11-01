@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.17.0] - 2026-11-01
+
+### Changed
+
+- **Claim buttons are coloured.** 吃, 碰 and 槓 share a blue no other surface
+  uses, so an offer stands out from Pass beside it; **胡 gets its own look** —
+  the red lacquer and gold rim of the 胡 stamp, with cream lettering. Discard
+  stays gold. Contrast tests keep each label readable and each colour tellable
+  from its neighbours. `/dev-gallery` shows the whole row.
+
 ## [0.2.16.0] - 2026-11-01
 
 ### Changed
