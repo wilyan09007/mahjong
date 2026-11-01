@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.14.0] - 2026-11-01
+
+### Changed
+
+- **Every discard pond fills left to right, top to bottom**, whatever the seat.
+  Ponds used to start nearest the middle and run in each owner's own direction
+  (right to left for the player across, down or up the screen for the sides);
+  where a pond sits already says whose it is, so the order inside it now reads
+  like a line of text.
+
 ## [0.2.13.0] - 2026-10-31
 
 ### Added

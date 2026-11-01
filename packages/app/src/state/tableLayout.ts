@@ -24,8 +24,8 @@ export function edgeFor(mySeat: Seat, theirSeat: Seat): Edge {
  * A real table puts each player's discards in front of them, and that is what
  * tells you who threw what: position, not a label. So mine runs along the
  * bottom of the felt, the player across along the top, and the side players'
- * at the left and right ends. Each starts nearest the middle and grows toward
- * its owner, as discards do at a real table.
+ * at the left and right ends. Inside each, tiles fill left to right, top to
+ * bottom.
  *
  * Sized for the worst case actually seen: across 3000 simulated hands no seat
  * ever threw more than 18 tiles (a hand typically ends at 14–15 each), so every
@@ -87,42 +87,20 @@ export function pondBlock(edge: Edge, tile: number): { width: number; height: nu
  * Where each of `count` discards sits inside its pond, relative to the block's
  * top-left. Index 0 is the first tile thrown.
  *
- * Top and bottom ponds fill in rows ("lines") of 9; side ponds in columns of 3.
- * The first line is the one nearest the middle of the table, and each line
- * reads in its owner's own left-to-right — so the player across reads right to
- * left from here, the left player down the screen, the right player up it.
+ * Every pond reads the same way, whatever the seat: left to right, top to
+ * bottom, like a line of text. Which pond it is says whose discards they are;
+ * the order inside it only has to be easy to follow. Past capacity a row holds
+ * more tiles, closer together, rather than spilling off the mat.
  */
 export function pondSlots(edge: Edge, count: number, tile: number): { x: number; y: number }[] {
   const h = tile / TILE_ASPECT;
   const block = pondBlock(edge, tile);
-  const side = isVerticalEdge(edge);
-  const lines = side ? POND.sideAcross : POND.deep;
-  const perLine = side ? POND.sideDeep : POND.across;
+  const [across, deep] = isVerticalEdge(edge) ? [POND.sideAcross, POND.sideDeep] : [POND.across, POND.deep];
+  const inRow = Math.max(across, Math.ceil(count / deep));
+  const pitch = inRow > across ? (block.width - tile) / (inRow - 1) : tile + POND.gap;
   const out: { x: number; y: number }[] = [];
-
-  if (!side) {
-    // Rows of `across`. Past capacity a row holds more, closer together.
-    const inRow = Math.max(perLine, Math.ceil(count / lines));
-    const pitch = inRow > perLine ? (block.width - tile) / (inRow - 1) : tile + POND.gap;
-    for (let i = 0; i < count; i++) {
-      const line = Math.floor(i / inRow);
-      const pos = i % inRow;
-      const row = edge === 'bottom' ? line : lines - 1 - line;
-      const col = edge === 'bottom' ? pos : inRow - 1 - pos;
-      out.push({ x: col * pitch, y: row * (h + POND.gap) });
-    }
-    return out;
-  }
-
-  // Columns of `sideDeep`. Past capacity there are more columns, closer together.
-  const columns = Math.max(lines, Math.ceil(count / perLine));
-  const pitch = columns > lines ? (block.width - tile) / (columns - 1) : tile + POND.gap;
   for (let i = 0; i < count; i++) {
-    const line = Math.floor(i / perLine);
-    const pos = i % perLine;
-    const col = edge === 'left' ? columns - 1 - line : line;
-    const row = edge === 'left' ? pos : perLine - 1 - pos;
-    out.push({ x: col * pitch, y: row * (h + POND.gap) });
+    out.push({ x: (i % inRow) * pitch, y: Math.floor(i / inRow) * (h + POND.gap) });
   }
   return out;
 }

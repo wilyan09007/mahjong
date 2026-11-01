@@ -38,26 +38,19 @@ describe('pondSlots', () => {
   const T = 22;
   const H = T / (44 / 60);
 
-  it('starts every pond nearest the centre of the table and grows toward its owner', () => {
-    // Bottom (me): first row is the TOP row of my pond. Top seat: the BOTTOM row
-    // of theirs. Side seats: the column nearest the middle.
-    const first = (edge: Edge) => pondSlots(edge, 18, T)[0]!;
-    const last = (edge: Edge) => pondSlots(edge, 18, T)[17]!;
-    assertThat(first('bottom').y < last('bottom').y, 'my pond grows downward, toward me');
-    assertThat(first('top').y > last('top').y, 'the top pond grows upward, toward them');
-    assertThat(first('left').x > last('left').x, 'the left pond grows leftward, toward them');
-    assertThat(first('right').x < last('right').x, 'the right pond grows rightward, toward them');
-  });
-
-  it('reads in each owner’s own left-to-right', () => {
-    const bottom = pondSlots('bottom', 3, T);
-    assertThat(bottom[0]!.x < bottom[1]!.x, 'mine runs left to right');
-    const top = pondSlots('top', 3, T);
-    assertThat(top[0]!.x > top[1]!.x, 'across runs right to left, as they see it left to right');
-    const left = pondSlots('left', 3, T);
-    assertThat(left[0]!.y < left[1]!.y, 'left seat runs down the screen');
-    const right = pondSlots('right', 3, T);
-    assertThat(right[0]!.y > right[1]!.y, 'right seat runs up the screen');
+  it('fills every pond left to right, top to bottom, whatever the seat', () => {
+    for (const edge of EDGES) {
+      const slots = pondSlots(edge, POND.capacity, T);
+      for (let i = 1; i < slots.length; i++) {
+        const [a, b] = [slots[i - 1]!, slots[i]!];
+        const sameRow = Math.abs(a.y - b.y) < 0.01;
+        assertThat(
+          (sameRow && b.x > a.x) || (b.y > a.y && b.x < a.x),
+          `${edge}: discard ${i} is not to the right of, or on the row below, discard ${i - 1}`,
+        );
+      }
+      assertThat(slots[0]!.x === 0 && slots[0]!.y === 0, `${edge}: the first discard is not top-left`);
+    }
   });
 
   it('gives a full pond’s 18 tiles their own place, inside the mat', () => {
