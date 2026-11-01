@@ -15,6 +15,7 @@ import { formatState } from './debug.js';
 import type { GameState } from './game.js';
 import { WALL_FLOOR } from './game.js';
 import type { Meld } from './melds.js';
+import { resolveVariant } from './variant.js';
 import {
   isFlower, isSuitTile, kindIndex, rankOf, sortTiles, suitOf,
   type Seat, type TileKind,
@@ -110,19 +111,21 @@ export function checkInvariants(s: GameState): string[] {
     p.melds.forEach((m, i) => out.push(...meldViolations(seat, m, i)));
 
     // A kong occupies four tiles but only three "slots", because its
-    // replacement draw puts the count back. So a seat is worth 16, except:
-    //   - the seat on turn may hold 17 (it has drawn and not yet discarded),
-    //   - the WINNER holds 17 for good, that being the winning hand itself.
+    // replacement draw puts the count back. So a seat is worth the variant's
+    // hand size (16 Taiwanese, 13 Hong Kong), except:
+    //   - the seat on turn may hold one more (it has drawn and not yet discarded),
+    //   - the WINNER holds one more for good, that being the winning hand itself.
+    const size = resolveVariant(s.variantId).handSize;
     const value = p.hand.length + p.melds.length * 3;
     let allowed: number[];
     let why: string;
     if (s.result?.type === 'win') {
       const isWinner = seat === s.result.winner;
-      allowed = isWinner ? [17] : [16];
+      allowed = isWinner ? [size + 1] : [size];
       why = isWinner ? ' as the winner' : '';
     } else {
       const onTurn = seat === s.turn && s.phase !== 'finished';
-      allowed = onTurn ? [16, 17] : [16];
+      allowed = onTurn ? [size, size + 1] : [size];
       why = onTurn ? ' while on turn' : '';
     }
     if (!allowed.includes(value)) {

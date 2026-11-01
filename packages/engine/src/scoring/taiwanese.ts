@@ -53,6 +53,16 @@ export interface ScoreContext {
   wasKongRob: boolean;
   /** 海底撈月 — the winning tile was the last drawable one. */
   wasLastTile: boolean;
+  /** 天糊 — the dealer won on the deal, before anyone discarded. Hong Kong scores it. */
+  isHeavenly?: boolean;
+  /** 地糊 — won on the dealer's first discard, before any claim. Hong Kong scores it. */
+  isEarthly?: boolean;
+  /**
+   * Kongs declared in a row that led to this winning tile: 1 for 槓上開花, 2 or
+   * more for 槓上槓. Hong Kong scores the difference; Taiwanese reads only
+   * `wasReplacementDraw`.
+   */
+  kongChain?: number;
 }
 
 type SetKind = 'chow' | 'pung';

@@ -169,3 +169,23 @@ export function winningTiles(tiles: TileKind[]): TileKind[] {
   if (tiles.length % 3 !== 1) return [];
   return NON_FLOWER_KINDS.filter((k) => isWinningHand([...tiles, k]));
 }
+
+/**
+ * 七對子: seven DISTINCT pairs, fourteen tiles, nothing melded. Four of a kind
+ * is not two pairs here — the common Hong Kong reading.
+ */
+export function isSevenPairs(tiles: TileKind[]): boolean {
+  if (tiles.length !== 14) return false;
+  const counts = new Map<TileKind, number>();
+  for (const t of tiles) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return counts.size === 7 && [...counts.values()].every((n) => n === 2);
+}
+
+const ORPHANS: TileKind[] = ['1w', '9w', '1t', '9t', '1b', '9b', 'we', 'ws', 'ww', 'wn', 'dr', 'dg', 'dw'];
+
+/** 十三么: one of every terminal and honour, and one of them twice. */
+export function isThirteenOrphans(tiles: TileKind[]): boolean {
+  if (tiles.length !== 14) return false;
+  if (!tiles.every((t) => ORPHANS.includes(t))) return false;
+  return ORPHANS.every((o) => tiles.includes(o));
+}

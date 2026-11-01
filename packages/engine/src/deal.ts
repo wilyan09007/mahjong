@@ -29,16 +29,18 @@ export interface DealResult {
   wallBack: number;
 }
 
-export function dealHands(tiles: TileKind[], dealer: Seat): DealResult {
+export function dealHands(tiles: TileKind[], dealer: Seat, handSize = 16): DealResult {
   let front = 0;
   let back = tiles.length - 1;
   const hands: TileKind[][] = [[], [], [], []];
 
-  // 4 passes of 4 tiles in seat order from the dealer, then 1 extra for the dealer.
-  for (let pass = 0; pass < 4; pass++) {
+  // Passes of 4 tiles in seat order from the dealer, then a pass for whatever
+  // is left (none for 16 tiles, one each for 13), then 1 extra for the dealer.
+  const passes = [...Array(Math.floor(handSize / 4)).fill(4), ...(handSize % 4 ? [handSize % 4] : [])];
+  for (const n of passes) {
     for (let s = 0; s < 4; s++) {
       const seat = ((dealer + s) % 4) as Seat;
-      for (let i = 0; i < 4; i++) hands[seat]!.push(tiles[front++]!);
+      for (let i = 0; i < n; i++) hands[seat]!.push(tiles[front++]!);
     }
   }
   hands[dealer]!.push(tiles[front++]!);
@@ -63,9 +65,9 @@ export function dealHands(tiles: TileKind[], dealer: Seat): DealResult {
     }
   }
 
-  // Flower replacement writes in place, so slot 16 is still the dealer's 17th
-  // tile — but only until the hands are sorted, so read it now.
-  const dealerLastTile = hands[dealer]![16]!;
+  // Flower replacement writes in place, so the last slot is still the dealer's
+  // extra tile — but only until the hands are sorted, so read it now.
+  const dealerLastTile = hands[dealer]![handSize]!;
 
   return {
     hands: hands.map((h) => sortTiles(h)),

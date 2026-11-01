@@ -96,8 +96,11 @@ function search(
 export function shanten16(concealed: TileKind[], meldCount: number): number {
   if (concealed.length % 3 === 2 && isWinningHand(concealed)) return -1;
 
-  const need = 5 - meldCount;
-  if (need < 0) {
+  // Sets still to make, read off the concealed tiles rather than assumed: a
+  // Taiwanese hand (16 or 17 concealed less 3 per meld) needs five sets in
+  // all, a Hong Kong one (13 or 14) four. Each meld already took 3 tiles out.
+  const need = Math.floor(concealed.length / 3);
+  if (need + meldCount > 5) {
     throw new Error(`meldCount ${meldCount} exceeds the 5 sets a hand can hold`);
   }
 

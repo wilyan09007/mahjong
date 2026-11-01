@@ -33,7 +33,7 @@ export {
 export type { MeldType, Meld } from './melds.js';
 
 // Win detection.
-export { isWinningHand, decomposeWin, decomposeWinAll, winningTiles } from './win.js';
+export { isWinningHand, decomposeWin, decomposeWinAll, winningTiles, isSevenPairs, isThirteenOrphans } from './win.js';
 export type { WinDecomposition } from './win.js';
 
 // Dealing.
@@ -60,6 +60,11 @@ export type { PlayerView, OpponentView } from './view.js';
 export { scoreTaiwaneseHand } from './scoring/taiwanese.js';
 export type { TaiItem, ScoreContext } from './scoring/taiwanese.js';
 export { computePayments } from './scoring/payments.js';
+export {
+  scoreCantoneseHand, cantonesePoints, computeCantonesePayments,
+  DEFAULT_CANTONESE_RULES, CANTONESE_MIN_FAAN_OPTIONS,
+} from './scoring/cantonese.js';
+export type { CantoneseRules } from './scoring/cantonese.js';
 
 // Debugging. Pure renderers — nothing here prints; the caller decides where
 // verbose output goes, which is how the engine stays I/O-free.
@@ -72,5 +77,5 @@ export { checkInvariants, assertInvariants, EngineInvariantError } from './invar
 // Session and variants.
 export { nextHandParams, newSession, isSessionOver } from './session.js';
 export type { SessionParams } from './session.js';
-export { TAIWANESE, VARIANTS, resolveVariant } from './variant.js';
-export type { Variant, VariantId } from './variant.js';
+export { TAIWANESE, CANTONESE, VARIANTS, resolveVariant, cantoneseRulesOf } from './variant.js';
+export type { Variant, VariantId, PaymentArgs } from './variant.js';

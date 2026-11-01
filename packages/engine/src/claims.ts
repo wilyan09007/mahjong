@@ -59,14 +59,19 @@ const PRIORITY: Record<ClaimKind, number> = { win: 3, kong: 2, pung: 2, chow: 1 
  * identifies the only seat allowed to chow (chow from the left player only) and
  * the discarder is never included at all.
  */
-export function computeClaimOptions(state: GameState): ClaimOption[] {
+export function computeClaimOptions(
+  state: GameState,
+  /** Whether `seat` may win on the discard. The variant decides; this default is the plain shape check. */
+  canWinOn: (seat: Seat, tile: TileKind) => boolean =
+    (seat, tile) => isWinningHand([...state.players[seat].hand, tile]),
+): ClaimOption[] {
   const d = state.lastDiscard;
   if (!d) return [];
   const options: ClaimOption[] = [];
   for (let i = 1; i < 4; i++) {
     const seat = ((d.by + i) % 4) as Seat;
     const hand = state.players[seat].hand;
-    if (isWinningHand([...hand, d.tile])) options.push({ seat, claim: 'win' });
+    if (canWinOn(seat, d.tile)) options.push({ seat, claim: 'win' });
     if (canExposedKong(hand, d.tile)) options.push({ seat, claim: 'kong' });
     if (canPung(hand, d.tile)) options.push({ seat, claim: 'pung' });
     if (i === 1 && chowOptions(hand, d.tile).length > 0) {

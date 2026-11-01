@@ -22,12 +22,15 @@ interface Tally {
 }
 
 /** Play `games` full hands with all four seats driven by the bot. */
-function playBotGames(games: number, seed0: number): Tally {
+function playBotGames(games: number, seed0: number, hongKong = false): Tally {
   const rng = mulberry32(99);
   const tally: Tally = { wins: 0, draws: 0, selfDraws: 0, claims: 0, kongs: 0, totalTai: 0 };
 
   for (let g = 0; g < games; g++) {
-    let s: GameState = newHand({ seed: seed0 + g, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+    let s: GameState = newHand({
+      seed: seed0 + g, dealer: 0, dealerStreak: 0, roundWind: 'E',
+      ...(hongKong ? { variantId: 'cantonese' as const } : {}),
+    });
     let steps = 0;
 
     while (s.phase !== 'finished') {
@@ -97,6 +100,12 @@ describe('chooseBotAction', () => {
   it('claims melds when they help and passes when they do not', () => {
     const tally = playBotGames(40, 9000);
     expect(tally.claims, 'the bot never claimed a meld in 40 hands').toBeGreaterThan(0);
+  });
+
+  it('plays whole Hong Kong 13-tile hands too, legally, and wins some at the 3-番 default', () => {
+    const t = playBotGames(60, 500, true);
+    expect(t.wins + t.draws).toBe(60);
+    expect(t.wins).toBeGreaterThan(0);
   });
 
   it('refuses to act when handed no options, instead of inventing one', () => {
