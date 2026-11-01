@@ -7,7 +7,7 @@
  * testing without a renderer.
  */
 
-import { sortTiles, type Action, type HandResult, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
+import { WALL_FLOOR, sortTiles, type Action, type HandResult, type PlayerView, type Seat, type TileKind } from '@mahjong/engine';
 import type { LobbyMessage, SeatPublic } from '../net/messages.js';
 import { strings } from '../strings.js';
 
@@ -165,6 +165,16 @@ export function actionButtons(model: ActionBarModel): ActionButtonSpec[] {
 export function thinkingSeats(view: PlayerView): Seat[] {
   if (view.phase !== 'awaiting-discard') return [];
   return view.opponents.map((o) => o.seat).filter((s) => s === view.turn);
+}
+
+/**
+ * Tiles that can still be drawn, for the "N left" counter. The last
+ * `WALL_FLOOR` tiles of the wall are a reserve that is never drawn, so counting
+ * the whole wall stopped at 16 and showed "16 left" beside a drawn hand; this
+ * reaches 0 exactly when the hand runs out.
+ */
+export function drawableTiles(view: PlayerView): number {
+  return Math.max(0, view.wallCount - WALL_FLOOR);
 }
 
 // ---------------------------------------------------------------------------

@@ -38,7 +38,7 @@ column names the task that creates it.
 ## 1. Current repo state
 
 Plans 1–4 are implemented: the monorepo, `@mahjong/engine`, `@mahjong/bot`,
-`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (401 tests,
+`@mahjong/server`, `@mahjong/app`, and the delivery artifacts (402 tests,
 `pnpm test` and `pnpm typecheck` green).
 
 The app has been **played end to end on Expo web at phone-landscape size**
@@ -243,7 +243,7 @@ Measured at 181 wins / 19 draws per 200 bot-vs-bot hands (random play: 0/200).
 
 ## 6. `packages/app` — Expo React Native client (Plan 3) ✅ code, ⚠️ unverified on device
 
-**Built, unit-tested (150 tests), and PLAYED end to end on Expo web** against a
+**Built, unit-tested (151 tests), and PLAYED end to end on Expo web** against a
 live server with three bots — which found and fixed five visual bugs no unit
 test caught (see the v0.2.1.0 changelog). Still never run on a real Android
 device or emulator: touch targets, landscape lock, frame rate and on-phone
@@ -265,7 +265,7 @@ Expo SDK 57 · React 19 · React Native 0.87 · expo-router · zustand · colyse
 | `src/components/Controls.tsx` | ✅ | `Button`, `ActionBar`, `EmotePicker`, `ErrorToast`, `ClaimCountdown` | Buttons come straight from `actionBarModel`, so one exists iff the server would accept it. `ActionBar` draws `actionButtons(model)` as rows from `layoutActionRow` (bottom row first, rising upward); `Button` takes an action-row `size` (smaller sizes keep a 44px touch area via `hitSlop`) and small `tiles` after the label. |
 | `src/state/actionRow.ts` | ✅ | `layoutActionRow`, `estimateButtonWidth`, `actionRowHeight`, `ACTION_SIZES`, `ActionSize` | How the action buttons fit beside my melds: regular size on one row; a smaller size only if that makes one row; otherwise compact rows stacking upward, filled from the last button so 胡/Discard stays bottom-right under the thumb. Widths are estimated from label and tile count, so the choice is pure and tested. |
 | `src/state/tableLayout.ts` | ✅ | `edgeFor`, `isVerticalEdge`, `rotationFor`, `POND`, `pondBlock`, `pondSlots`, `pondLayout`, `feltSize`, `FELT_INSET`, `Rect`, `PondLayout` | Pure seat→edge and pond maths. I am always at the bottom of my own screen. **Each seat's discards lie in front of that player**: mine along the bottom of the felt, across along the top (9 across × 2 deep), the side seats at the ends (6 × 3). Inside every pond tiles fill left to right, top to bottom, whatever the seat (`pondSlots`) — which pond it is says whose; past 18 a row squeezes rather than spilling. 18 is the most any seat threw in 3000 simulated hands. `pondLayout(felt)` picks the LARGEST discard that fits all four at 18 (21px on the 800×360 reference phone, 27px at 880×400) and keeps ≥8px between the top and bottom ponds, which at 4px read as one block. `FELT_INSET` is the one definition of where the felt sits; the table and the tests both use it. |
-| `src/state/selectors.ts` | ✅ | `canStart`, `actionBarModel`, `actionButtons`, `thinkingSeats`, `formatResult`, `rankStandings`, `medalFor`, `seatLabel` | Pure view-model derivations — every branching decision a screen makes, testable without a renderer. A chow button carries its whole run as `tiles` (its two tiles plus the claimed one, sorted) and a kong its tile — shown as tiles, not codes like "2w 4w". `actionButtons` orders the row: Pass far left, away from the thumb; claims, kongs; 胡 and Discard far right. `thinkingSeats` picks the opponent who gets "thinking" dots: whoever's turn it is, and only them — claim windows get none. |
+| `src/state/selectors.ts` | ✅ | `canStart`, `actionBarModel`, `actionButtons`, `thinkingSeats`, `drawableTiles`, `formatResult`, `rankStandings`, `medalFor`, `seatLabel` | Pure view-model derivations — every branching decision a screen makes, testable without a renderer. A chow button carries its whole run as `tiles` (its two tiles plus the claimed one, sorted) and a kong its tile — shown as tiles, not codes like "2w 4w". `actionButtons` orders the row: Pass far left, away from the thumb; claims, kongs; 胡 and Discard far right. `thinkingSeats` picks the opponent who gets "thinking" dots: whoever's turn it is, and only them — claim windows get none. `drawableTiles` is the "N left" counter: the wall less its never-drawn `WALL_FLOOR` reserve, so it reaches 0 exactly when a hand runs out (counting the whole wall stopped at 16). |
 | `src/state/store.ts` | ✅ | `useGameStore`, `applyServerMessage`, `ServerState`, `MAX_EMOTES` | zustand store **written by server messages only**. `applyServerMessage` is a pure reducer. An `error` never clobbers the `view`; a `view` always clears `pendingAction`. |
 | `src/state/codeInput.ts` | ✅ | `normaliseCode`, `isCompleteCode` | Strips punctuation and uppercases what people type off a photo. |
 | `src/net/messages.ts` | ✅ | wire types, `S2C`, `C2S`, `JOIN_ERROR` | The client's copy of the protocol. Duplicated from the server on purpose — the app talks over a socket and must not bundle server code. |

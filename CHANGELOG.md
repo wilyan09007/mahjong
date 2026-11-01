@@ -4,6 +4,15 @@ All notable changes to this project are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are `MAJOR.MINOR.PATCH.MICRO`.
 
+## [0.2.16.0] - 2026-11-01
+
+### Changed
+
+- **The "N left" counter counts only tiles that can still be drawn.** The last
+  16 tiles of the wall are a reserve that is never drawn, so the counter used
+  to stop at 16 and showed "16 left" beside a drawn hand. It now counts down to
+  0 exactly when the wall runs out.
+
 ## [0.2.15.0] - 2026-11-01
 
 ### Fixed

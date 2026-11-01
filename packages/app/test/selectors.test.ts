@@ -1,6 +1,7 @@
 import { assertThat } from './support';
 import {
-  actionBarModel, actionButtons, canStart, formatResult, medalFor, rankStandings, thinkingSeats,
+  actionBarModel, actionButtons, canStart, drawableTiles, formatResult, medalFor, rankStandings,
+  thinkingSeats,
 } from '../src/state/selectors';
 import { applyAction, legalActions, newHand, viewFor } from '@mahjong/engine';
 import type { GameState, PlayerView, Seat } from '@mahjong/engine';
@@ -267,5 +268,26 @@ describe('thinkingSeats', () => {
     expect(opened.phase).toBe('awaiting-claims');
     expect(thinkingSeats(viewFor(opened, 2))).toEqual([]);
     expect(thinkingSeats(viewFor(opened, 0))).toEqual([]);
+  });
+});
+
+
+describe('drawableTiles', () => {
+  it('counts only the tiles that can still be drawn, reaching 0 exactly when the wall runs out', () => {
+    // The last 16 tiles are a reserve that is never drawn, so the counter
+    // showed "16 left" beside a drawn hand. It now counts down to 0 instead.
+    let state: GameState = newHand({ seed: 3, dealer: 0, dealerStreak: 0, roundWind: 'E' });
+    const opening = viewFor(state, 0);
+    expect(drawableTiles(opening)).toBe(opening.wallCount - 16);
+    for (let i = 0; i < 2000 && !state.result; i++) {
+      const all = ([0, 1, 2, 3] as Seat[]).flatMap((s) => legalActions(state, s));
+      const a = all.find((x) => x.type === 'discard') ?? all.find((x) => x.type === 'pass');
+      if (!a) break;
+      state = applyAction(state, a);
+      assertThat(drawableTiles(viewFor(state, 0)) >= 0, 'the counter went negative');
+    }
+    // Nobody ever declares a win here, so the hand must run the wall out.
+    expect(state.result?.type).toBe('draw-exhausted');
+    expect(drawableTiles(viewFor(state, 0))).toBe(0);
   });
 });

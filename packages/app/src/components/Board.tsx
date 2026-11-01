@@ -9,6 +9,7 @@ import {
   COMPACT_ROW, SIDE_STACK, TABLE_ZONES, TILE_SIZES, sideStackColumns, tileHeight, tokens,
 } from '../theme/tokens';
 import { strings } from '../strings';
+import { drawableTiles } from '../state/selectors';
 import { POND, isVerticalEdge, pondSlots, type Edge, type Rect } from '../state/tableLayout';
 
 /**
@@ -392,7 +393,7 @@ export function TableStatus({ view, seatNames }: {
     <View style={styles.status}>
       <View style={styles.statusHead}>
         <Text style={styles.statusWind}>{view.roundWind}</Text>
-        <Text style={styles.statusWall}>{strings.wallRemaining(view.wallCount)}</Text>
+        <Text style={styles.statusWall}>{strings.wallRemaining(drawableTiles(view))}</Text>
       </View>
       {/* Every opponent gets a gold border on their turn; you get this line, so
           on your own turn it has to carry the same weight. Muted grey in a
